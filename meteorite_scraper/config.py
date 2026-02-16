@@ -26,12 +26,33 @@ DB_CONFIG = {
 }
 
 # Scraping configuration
+#SCRAPE_CONFIG = {
+#    'user_agent': 'MeteoriteResearchBot/1.0 (Educational Research; Contact: your_email@example.com)',
+#    'request_timeout': 30,
+#    'rate_limit_delay': 2,  # seconds between requests
+#    'max_retries': 3,
+#    'chunk_size': 8192,  # for image downloads
+#}
+
 SCRAPE_CONFIG = {
-    'user_agent': 'MeteoriteResearchBot/1.0 (Educational Research; Contact: your_email@example.com)',
+    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
     'request_timeout': 30,
-    'rate_limit_delay': 2,  # seconds between requests
+    'rate_limit_delay': 3,  # Increase delay to 3 seconds
     'max_retries': 3,
-    'chunk_size': 8192,  # for image downloads
+    'chunk_size': 8192,
+    'headers': {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Cache-Control': 'max-age=0',
+    }
 }
 
 # Image processing

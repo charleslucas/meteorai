@@ -16,18 +16,34 @@ logger = logging.getLogger(__name__)
 class MeteoriteImageScraper:
     """Main scraper class that coordinates scraping from multiple sources"""
     
+    #def __init__(self):
+    #    self.db = DatabaseManager()
+    #    self.session = requests.Session()
+    #    self.session.headers.update({
+    #        'User-Agent': SCRAPE_CONFIG['user_agent']
+    #    })
+    #    self.stats = {
+    #        'images_found': 0,
+    #        'images_downloaded': 0,
+    #        'images_skipped': 0,
+    #        'errors': 0
+    #    }
+
     def __init__(self):
         self.db = DatabaseManager()
         self.session = requests.Session()
-        self.session.headers.update({
+
+        # Use all the headers from config
+        self.session.headers.update(SCRAPE_CONFIG.get('headers', {
             'User-Agent': SCRAPE_CONFIG['user_agent']
-        })
+        }))
+
         self.stats = {
             'images_found': 0,
             'images_downloaded': 0,
             'images_skipped': 0,
             'errors': 0
-        }
+        }        
     
     def download_image(self, url, max_retries=None):
         """Download image from URL with retry logic"""
