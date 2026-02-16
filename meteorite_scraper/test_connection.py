@@ -1,16 +1,18 @@
 import psycopg2
 from psycopg2 import Error
+from db_config import get_connection
 
 def test_connection():
     try:
         # Connect to the database
-        connection = psycopg2.connect(
-            host="localhost",
-            database="meteorite_images",
-            user="meteorite_user",
-            password="your_secure_password_here",
-            port="5432"
-        )
+        #connection = psycopg2.connect(
+        #    host="localhost",
+        #    database="meteorite_images",
+        #    user="meteorite_user",
+        #    password="your_secure_password_here",
+        #    port="5432"
+        #)
+        connection = get_connection()
         
         # Create a cursor
         cursor = connection.cursor()
