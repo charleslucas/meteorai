@@ -35,7 +35,19 @@ def main():
         default='INFO',
         help='Logging level'
     )
-    
+    parser.add_argument(
+        '--headless',
+        action='store_true',
+        help='Run browser in headless mode (not recommended - Cloudflare detection is more likely)'
+    )
+    parser.add_argument(
+        '--no-headless',
+        dest='headless',
+        action='store_false',
+        help='Run browser with visible window (recommended for Cloudflare bypass)'
+    )
+    parser.set_defaults(headless=False)
+
     args = parser.parse_args()
     
     # Setup logging
@@ -54,7 +66,7 @@ def main():
     # Scrape from selected sources
     if args.source in ['all', 'meteoritical']:
         logger.info("Scraping Meteoritical Bulletin")
-        bulletin_scraper = MeteoriticalBulletinScraper(scraper.session)
+        bulletin_scraper = MeteoriticalBulletinScraper(headless=args.headless)
         if args.meteorites:
             bulletin_scraper.meteorite_names = args.meteorites
         scraper.scrape_source(bulletin_scraper, 'meteoritical_bulletin')
