@@ -150,17 +150,26 @@ class MeteoriticalBulletinScraper:
 
         # Extract metadata from table
         for row in soup.find_all('tr'):
+            # Check if this row has a <th> tag (header cell)
+            header_cell = row.find('th')
+            if header_cell:
+                key = header_cell.text.strip().rstrip(':').lower()
+
+                # Check if this is the Photos section
+                if key == 'photos' or 'photo' in key:
+                    # The content is in the <td> cell
+                    content_cell = row.find('td')
+                    if content_cell:
+                        photos_data = self._parse_photos_cell(content_cell, page_url, metadata)
+                        images.extend(photos_data)
+                        logger.info(f"Found {len(photos_data)} photos for {metadata.get('meteorite_name')}")
+                    continue
+
+            # Also check regular td cells for other metadata
             cells = row.find_all('td')
             if len(cells) >= 2:
                 key = cells[0].text.strip().rstrip(':').lower()
                 value = cells[1].text.strip()
-
-                # Check if we've entered the Photos section
-                if key == 'photos' or 'photo' in key:
-                    # Parse photos from this row
-                    photos_data = self._parse_photos_cell(cells[1], page_url, metadata)
-                    images.extend(photos_data)
-                    continue
 
                 # Extract other metadata
                 if key == 'classification':
@@ -183,83 +192,126 @@ class MeteoriticalBulletinScraper:
     def _parse_photos_cell(self, photos_cell, page_url, metadata):
         """
         Parse the Photos cell from a meteorite detail page.
-        Extracts photo URLs and uploader information.
+        The Photos cell contains a nested table with photographer names and photo links.
+        Each thumbnail link points to a page with the full-resolution image.
         """
         images = []
 
-        # Look for all links in the photos cell
-        for link in photos_cell.find_all('a'):
-            href = link.get('href', '')
+        # Look for the nested table with class "text-table"
+        photo_table = photos_cell.find('table', class_='text-table')
 
-            # Check if this link points to an image
-            if any(ext in href.lower() for ext in ['.jpg', '.jpeg', '.png', '.gif']):
-                img_url = urljoin(page_url, href)
+        if not photo_table:
+            logger.debug("No photo table found in Photos cell")
+            return images
 
-                # Try to extract uploader information
-                uploader = None
-                link_text = link.text.strip()
-                parent_text = link.parent.get_text() if link.parent else ''
+        # Find all data rows in the photo table
+        for row in photo_table.find_all('tr'):
+            # Skip header rows (they have <th> tags)
+            if row.find('th'):
+                continue
 
-                # Common patterns: "photo by John Doe", "(John Doe)", "© John Doe"
-                if '(' in parent_text and ')' in parent_text:
-                    match = re.search(r'\(([^)]+)\)', parent_text)
-                    if match:
-                        uploader = match.group(1).strip()
+            cells = row.find_all('td')
 
-                # Also check for "by" pattern
-                if not uploader and ' by ' in parent_text.lower():
-                    match = re.search(r'by\s+([^,.\n]+)', parent_text, re.IGNORECASE)
-                    if match:
-                        uploader = match.group(1).strip()
+            # Each data row should have 2 cells: photographer name and photos
+            if len(cells) >= 2:
+                # First cell contains photographer name
+                photographer_cell = cells[0]
+                photographer_link = photographer_cell.find('a')
+                uploader = photographer_link.text.strip() if photographer_link else photographer_cell.text.strip()
 
-                # Check if there's a sibling text node or nearby element with uploader info
-                if not uploader:
-                    next_sibling = link.next_sibling
-                    if next_sibling and isinstance(next_sibling, str):
-                        sibling_text = next_sibling.strip()
-                        if sibling_text:
-                            uploader = sibling_text.strip('(), ')
+                # Second cell contains photo thumbnails
+                photos_cell_data = cells[1]
 
-                images.append({
-                    'url': img_url,
-                    'metadata': {
-                        **metadata,
-                        'uploader': uploader or 'Unknown',
-                        'link_text': link_text,
-                        'image_context': 'photos_section',
-                        'source': 'meteoritical_bulletin'
-                    }
-                })
+                # Find all thumbnail links (they link to get_original_photo.cfm)
+                for link in photos_cell_data.find_all('a', class_='thumbnail'):
+                    href = link.get('href', '')
 
-            # Also check if the link contains an img tag
-            img_tag = link.find('img')
-            if img_tag:
-                src = img_tag.get('src', '')
-                if src and not src.startswith('data:'):
-                    # Often thumbnails link to larger images
-                    full_img_url = urljoin(page_url, href) if href else urljoin(page_url, src)
+                    if href and 'get_original_photo' in href:
+                        # Build full URL to the photo detail page
+                        photo_page_url = urljoin(page_url, href)
 
-                    # Try to extract uploader
-                    uploader = None
-                    parent_text = link.parent.get_text() if link.parent else ''
+                        # Get the thumbnail image for additional metadata
+                        img_tag = link.find('img')
+                        title = img_tag.get('title', '') if img_tag else ''
 
-                    if '(' in parent_text and ')' in parent_text:
-                        match = re.search(r'\(([^)]+)\)', parent_text)
-                        if match:
-                            uploader = match.group(1).strip()
+                        # Note: photo_page_url points to get_original_photo.cfm
+                        # which displays the full-resolution image
+                        # The scraper will need to follow this URL to get the actual image
+                        images.append({
+                            'url': photo_page_url,
+                            'metadata': {
+                                **metadata,
+                                'uploader': uploader,
+                                'title': title,
+                                'image_context': 'photos_section',
+                                'source': 'meteoritical_bulletin',
+                                'is_photo_page': True  # Flag indicating this needs resolution
+                            }
+                        })
+                        logger.debug(f"Found photo page: {photo_page_url} by {uploader}")
 
-                    images.append({
-                        'url': full_img_url,
-                        'metadata': {
-                            **metadata,
-                            'uploader': uploader or 'Unknown',
-                            'alt_text': img_tag.get('alt', ''),
-                            'image_context': 'photos_section',
-                            'source': 'meteoritical_bulletin'
-                        }
-                    })
-
+        logger.info(f"Extracted {len(images)} photo URLs from Photos section")
         return images
+
+    def resolve_photo_page(self, photo_page_url):
+        """
+        Visit a photo detail page and extract the actual full-resolution image URL.
+
+        Args:
+            photo_page_url: URL to the get_original_photo.cfm page
+
+        Returns:
+            The actual image URL, or None if not found
+        """
+        try:
+            logger.debug(f"Resolving photo page: {photo_page_url}")
+            self.driver.get(photo_page_url)
+            time.sleep(1)  # Wait for page to load
+
+            # Parse the photo detail page
+            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+
+            # Strategy 1: Look for the "Direct link to photo" button
+            # This is the most reliable method for this site
+            direct_link = soup.find('a', class_='button-darkblue')
+            if direct_link and direct_link.get('href'):
+                actual_url = direct_link['href']
+                # The href might be HTML-encoded, decode it
+                import html
+                actual_url = html.unescape(actual_url)
+                logger.debug(f"Found image URL from direct link button: {actual_url}")
+                return actual_url
+
+            # Strategy 2: Look for the main image in the content area
+            # The image is in a <main> tag with role="main"
+            main_content = soup.find('main', role='main')
+            if main_content:
+                img = main_content.find('img')
+                if img and img.get('src'):
+                    src = img['src']
+                    # Check if it's a valid image URL
+                    if any(ext in src.lower() for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp']):
+                        actual_url = urljoin(photo_page_url, src)
+                        logger.debug(f"Found image URL from main content: {actual_url}")
+                        return actual_url
+
+            # Strategy 3: Look for any img tag with src containing common image extensions
+            # Skip logos and small images
+            for img in soup.find_all('img'):
+                src = img.get('src', '')
+                if src and any(ext in src.lower() for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp']):
+                    # Skip logos, thumbnails, and small images
+                    if not any(skip in src.lower() for skip in ['logo', 'thumb', 'small', 'icon']):
+                        actual_url = urljoin(photo_page_url, src)
+                        logger.debug(f"Found image URL (fallback): {actual_url}")
+                        return actual_url
+
+            logger.warning(f"Could not find image on photo page: {photo_page_url}")
+            return None
+
+        except Exception as e:
+            logger.error(f"Error resolving photo page {photo_page_url}: {e}")
+            return None
 
     def get_images(self, listing_url=None, max_meteorites=None):
         """
@@ -308,8 +360,33 @@ class MeteoriticalBulletinScraper:
             # Be respectful with rate limiting
             time.sleep(1)
 
-        logger.info(f"Total images collected: {len(all_images)}")
-        return all_images
+        logger.info(f"Total photo pages collected: {len(all_images)}")
+
+        # Resolve photo page URLs to actual image URLs
+        logger.info("Resolving photo page URLs to actual images...")
+        resolved_images = []
+        for image_data in all_images:
+            if image_data['metadata'].get('is_photo_page'):
+                # This is a photo detail page, need to resolve it
+                actual_url = self.resolve_photo_page(image_data['url'])
+                if actual_url:
+                    # Update with the actual image URL
+                    image_data['url'] = actual_url
+                    # Remove the flag since it's now resolved
+                    image_data['metadata']['is_photo_page'] = False
+                    resolved_images.append(image_data)
+                    logger.debug(f"Resolved to: {actual_url}")
+                else:
+                    logger.warning(f"Failed to resolve photo page: {image_data['url']}")
+
+                # Rate limiting between photo page visits
+                time.sleep(1)
+            else:
+                # Already a direct image URL
+                resolved_images.append(image_data)
+
+        logger.info(f"Successfully resolved {len(resolved_images)} image URLs")
+        return resolved_images
 
     def close(self):
         """Close the Selenium driver"""
