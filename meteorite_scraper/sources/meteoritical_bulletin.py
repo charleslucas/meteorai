@@ -1,9 +1,12 @@
 try:
-    import cloudscraper as requests
-    USING_CLOUDSCRAPER = True
+    import undetected_chromedriver as uc
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    USING_SELENIUM = True
 except ImportError:
-    import requests
-    USING_CLOUDSCRAPER = False
+    USING_SELENIUM = False
+
 from bs4 import BeautifulSoup
 import logging
 import time
@@ -13,43 +16,46 @@ from urllib.parse import urljoin
 logger = logging.getLogger(__name__)
 
 class MeteoriticalBulletinScraper:
-    """Scraper for the Meteoritical Bulletin Database"""
+    """Scraper for the Meteoritical Bulletin Database using Selenium"""
 
     BASE_URL = "https://www.lpi.usra.edu/meteor/"
     # Default listing URL for meteorites with photos
     LISTING_URL = "https://www.lpi.usra.edu/meteor/metbull.cfm?sfor=names&stype=contains&sea=*&country=All&categ=All&ants=no&falls=yes&nwas=no&phot=yes&map=ge&srt=name&page=0&lrec=1000&pnt=Normal+table&mblist=All&snew=0"
 
-    def __init__(self, session=None):
-        if session:
-            self.session = session
-        else:
-            if USING_CLOUDSCRAPER:
-                logger.info("Using cloudscraper to bypass bot detection")
-                self.session = requests.create_scraper(
-                    browser={
-                        'browser': 'chrome',
-                        'platform': 'windows',
-                        'desktop': True
-                    }
-                )
-            else:
-                logger.info("Using standard requests (install cloudscraper for better bot detection bypass)")
-                self.session = requests.Session()
-                self.session.headers.update({
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                    'Accept-Language': 'en-US,en;q=0.9',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'DNT': '1',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                    'Sec-Fetch-Dest': 'document',
-                    'Sec-Fetch-Mode': 'navigate',
-                    'Sec-Fetch-Site': 'none',
-                    'Sec-Fetch-User': '?1',
-                    'Cache-Control': 'max-age=0'
-                })
+    def __init__(self, headless=True):
+        """
+        Initialize the scraper with Selenium.
+
+        Args:
+            headless: Run Chrome in headless mode (default True)
+        """
+        if not USING_SELENIUM:
+            raise ImportError("Selenium is required. Install with: pip install selenium undetected-chromedriver")
+
+        logger.info("Initializing Selenium with undetected-chromedriver...")
+
+        # Create undetected Chrome driver
+        # Note: undetected-chromedriver handles most anti-detection automatically
+        options = uc.ChromeOptions()
+
+        # WARNING: Headless mode is easier for Cloudflare to detect
+        # For best results, use headless=False
+        if headless:
+            logger.warning("Running in headless mode - Cloudflare detection is more likely!")
+            options.add_argument('--headless=new')
+
+        # Basic options for stability
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+
+        # Window size (helps with headless detection)
+        options.add_argument('--window-size=1920,1080')
+
+        # Let undetected-chromedriver handle the rest automatically
+        self.driver = uc.Chrome(options=options, version_main=None, use_subprocess=True)
+        self.driver.implicitly_wait(10)
         self._session_initialized = False
+        logger.info("Selenium driver initialized successfully")
 
     def _initialize_session(self):
         """Visit the homepage to establish session and get cookies"""
@@ -58,15 +64,13 @@ class MeteoriticalBulletinScraper:
 
         try:
             logger.info("Initializing session by visiting homepage...")
-            response = self.session.get(self.BASE_URL, timeout=30)
-            response.raise_for_status()
+            self.driver.get(self.BASE_URL)
+            time.sleep(2)  # Wait for page to load
             self._session_initialized = True
             logger.info("Session initialized successfully")
-            time.sleep(1)  # Brief pause after homepage visit
         except Exception as e:
             logger.warning(f"Failed to initialize session: {e}")
-            # Continue anyway, might still work
-    
+
     def scrape_meteorite_listing(self, listing_url=None):
         """
         Scrape the meteorite listing page and extract detail page URLs.
@@ -80,51 +84,50 @@ class MeteoriticalBulletinScraper:
 
         try:
             logger.info(f"Fetching meteorite listing from: {listing_url}")
-            # Add Referer header to look like we came from the homepage
-            headers = {'Referer': self.BASE_URL}
-            response = self.session.get(listing_url, headers=headers, timeout=30)
-            logger.info(f"****************************************")
-            logger.info(f"{response}")
-            logger.info(f"****************************************")
-            response.raise_for_status()
+            self.driver.get(listing_url)
 
-            soup = BeautifulSoup(response.content, 'html.parser')
+            # Wait for Cloudflare challenge to complete
+            logger.info("Waiting for Cloudflare challenge to complete...")
+            max_wait = 60  # Maximum 60 seconds (Cloudflare can take a while)
+            wait = WebDriverWait(self.driver, max_wait)
+
+            # Give Cloudflare's JavaScript time to initialize
+            time.sleep(5)
+
+            try:
+                # Wait until we see meteorite names (span.mname) which means the real page loaded
+                wait.until(EC.presence_of_element_located((By.CLASS_NAME, "mname")))
+                logger.info("Cloudflare challenge completed, page loaded successfully")
+            except Exception as e:
+                logger.warning("Timeout waiting for page content. Cloudflare may have blocked us.")
+                logger.warning(f"Page title: {self.driver.title}")
+                logger.warning(f"Error: {str(e)}")
+                # Continue anyway to see what we got
+
+            time.sleep(2)  # Additional wait for dynamic content
+
+            logger.info(f"Page title: {self.driver.title}")
+
+            # Debug: Print received HTML
+            logger.info("=" * 80)
+            logger.info("Received HTML:")
+            logger.info("*************************************************")
+            logger.info(self.driver.page_source)
+            logger.info("*************************************************")
+            logger.info("=" * 80)
+
+            # Get page source and parse with BeautifulSoup
+            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
             meteorite_links = []
 
-            # Find the table containing meteorite listings
-            # Look for tables with meteorite data
-            for table in soup.find_all('table'):
-                rows = table.find_all('tr')
-
-                # Try to find header row to identify the "Name" column
-                header_row = None
-                name_col_idx = None
-
-                for row in rows:
-                    headers = row.find_all('th')
-                    if headers:
-                        for idx, header in enumerate(headers):
-                            if 'name' in header.text.strip().lower():
-                                name_col_idx = idx
-                                header_row = row
-                                break
-                        if name_col_idx is not None:
-                            break
-
-                # If we found a Name column, extract links from data rows
-                if name_col_idx is not None:
-                    for row in rows:
-                        if row == header_row:
-                            continue
-                        cells = row.find_all('td')
-                        if len(cells) > name_col_idx:
-                            name_cell = cells[name_col_idx]
-                            link = name_cell.find('a')
-                            if link and link.get('href'):
-                                meteorite_name = link.text.strip()
-                                detail_url = urljoin(response.url, link['href'])
-                                meteorite_links.append((meteorite_name, detail_url))
-                                logger.debug(f"Found meteorite: {meteorite_name} -> {detail_url}")
+            # Find all meteorite names - they're in <span class="mname"> tags
+            for mname_span in soup.find_all('span', class_='mname'):
+                link = mname_span.find('a')
+                if link and link.get('href'):
+                    meteorite_name = link.text.strip()
+                    detail_url = urljoin(self.driver.current_url, link['href'])
+                    meteorite_links.append((meteorite_name, detail_url))
+                    logger.debug(f"Found meteorite: {meteorite_name} -> {detail_url}")
 
             logger.info(f"Found {len(meteorite_links)} meteorites in listing")
             return meteorite_links
@@ -133,19 +136,6 @@ class MeteoriticalBulletinScraper:
             logger.error(f"Error scraping meteorite listing: {e}")
             return []
 
-    def search_meteorite(self, name):
-        """Search for a specific meteorite by name"""
-        search_url = f"{self.BASE_URL}metbull.php"
-        params = {'sea': name}
-
-        try:
-            response = self.session.get(search_url, params=params, timeout=30)
-            response.raise_for_status()
-            return self.parse_meteorite_page(response.content, response.url)
-        except Exception as e:
-            logger.error(f"Error searching for {name}: {e}")
-            return []
-    
     def parse_meteorite_page(self, html_content, page_url):
         """Parse a meteorite detail page and extract photos from the Photos section"""
         soup = BeautifulSoup(html_content, 'html.parser')
@@ -159,7 +149,6 @@ class MeteoriticalBulletinScraper:
             metadata['meteorite_name'] = title.text.strip()
 
         # Extract metadata from table
-        in_photos_section = False
         for row in soup.find_all('tr'):
             cells = row.find_all('td')
             if len(cells) >= 2:
@@ -168,7 +157,6 @@ class MeteoriticalBulletinScraper:
 
                 # Check if we've entered the Photos section
                 if key == 'photos' or 'photo' in key:
-                    in_photos_section = True
                     # Parse photos from this row
                     photos_data = self._parse_photos_cell(cells[1], page_url, metadata)
                     images.extend(photos_data)
@@ -209,13 +197,11 @@ class MeteoriticalBulletinScraper:
 
                 # Try to extract uploader information
                 uploader = None
-                # Look for text near the link (could be in parentheses or nearby text)
                 link_text = link.text.strip()
                 parent_text = link.parent.get_text() if link.parent else ''
 
                 # Common patterns: "photo by John Doe", "(John Doe)", "© John Doe"
                 if '(' in parent_text and ')' in parent_text:
-                    # Extract text in parentheses
                     match = re.search(r'\(([^)]+)\)', parent_text)
                     if match:
                         uploader = match.group(1).strip()
@@ -274,7 +260,7 @@ class MeteoriticalBulletinScraper:
                     })
 
         return images
-    
+
     def get_images(self, listing_url=None, max_meteorites=None):
         """
         Get images from the meteorite listing page.
@@ -305,15 +291,10 @@ class MeteoriticalBulletinScraper:
             logger.info(f"[{idx}/{total}] Scraping photos for: {name}")
 
             try:
-                # Add Referer header to look like we came from the listing page
-                headers = {'Referer': used_listing_url}
-                response = self.session.get(url, headers=headers, timeout=30)
-                logger.info(f"****************************************")
-                logger.info(f"{response}")
-                logger.info(f"****************************************")
+                self.driver.get(url)
+                time.sleep(1)  # Wait for page to load
 
-                response.raise_for_status()
-                images = self.parse_meteorite_page(response.content, url)
+                images = self.parse_meteorite_page(self.driver.page_source, url)
 
                 if images:
                     logger.info(f"  Found {len(images)} photo(s)")
@@ -325,26 +306,25 @@ class MeteoriticalBulletinScraper:
                 logger.error(f"  Error scraping {name}: {e}")
 
             # Be respectful with rate limiting
-            time.sleep(2)
+            time.sleep(1)
 
         logger.info(f"Total images collected: {len(all_images)}")
         return all_images
 
-    def get_images_by_names(self, meteorite_names=None):
-        """Get images for a list of specific meteorite names (legacy method)"""
-        if meteorite_names is None:
-            # Default list of well-known meteorites
-            meteorite_names = [
-                'Allende', 'Murchison', 'Canyon Diablo', 'Willamette',
-                'Hoba', 'Campo del Cielo', 'Sikhote-Alin', 'Chelyabinsk',
-                'Fukang', 'Esquel', 'Gibeon', 'Seymchan'
-            ]
+    def close(self):
+        """Close the Selenium driver"""
+        if hasattr(self, 'driver'):
+            logger.info("Closing Selenium driver...")
+            self.driver.quit()
 
-        all_images = []
-        for name in meteorite_names:
-            logger.info(f"Searching Meteoritical Bulletin for: {name}")
-            images = self.search_meteorite(name)
-            all_images.extend(images)
-            time.sleep(2)  # Be respectful
+    def __enter__(self):
+        """Context manager entry"""
+        return self
 
-        return all_images
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit"""
+        self.close()
+
+    def __del__(self):
+        """Cleanup on deletion"""
+        self.close()
