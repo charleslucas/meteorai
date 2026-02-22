@@ -51,6 +51,12 @@ def main():
         type=int,
         help='Maximum number of meteorites to scrape (useful for testing or batching)'
     )
+    parser.add_argument(
+        '--start-at',
+        type=int,
+        default=0,
+        help='Skip the first N meteorites in the listing (useful for resuming)'
+    )
     parser.set_defaults(headless=False)
 
     args = parser.parse_args()
@@ -75,11 +81,17 @@ def main():
         if args.meteorites:
             bulletin_scraper.meteorite_names = args.meteorites
 
-        # Pass max_meteorites to get_images via a wrapper
+        # Pass max_meteorites and start_at to get_images via a wrapper
         original_get_images = bulletin_scraper.get_images
-        if args.max_meteorites:
-            logger.info(f"Limiting to {args.max_meteorites} meteorites")
-            bulletin_scraper.get_images = lambda: original_get_images(max_meteorites=args.max_meteorites)
+        if args.max_meteorites or args.start_at:
+            if args.start_at:
+                logger.info(f"Starting at meteorite #{args.start_at + 1} (skipping first {args.start_at})")
+            if args.max_meteorites:
+                logger.info(f"Limiting to {args.max_meteorites} meteorites")
+            bulletin_scraper.get_images = lambda: original_get_images(
+                max_meteorites=args.max_meteorites,
+                start_at=args.start_at
+            )
 
         scraper.scrape_source(bulletin_scraper, 'meteoritical_bulletin')
     

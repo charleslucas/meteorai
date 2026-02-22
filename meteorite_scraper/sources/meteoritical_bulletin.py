@@ -313,13 +313,14 @@ class MeteoriticalBulletinScraper:
             logger.error(f"Error resolving photo page {photo_page_url}: {e}")
             return None
 
-    def get_images(self, listing_url=None, max_meteorites=None):
+    def get_images(self, listing_url=None, max_meteorites=None, start_at=0):
         """
         Get images from the meteorite listing page.
 
         Args:
             listing_url: URL of the listing page (defaults to LISTING_URL)
             max_meteorites: Maximum number of meteorites to scrape (None = all)
+            start_at: Skip the first N meteorites in the listing (default 0)
 
         Returns:
             List of image dictionaries with metadata
@@ -332,6 +333,18 @@ class MeteoriticalBulletinScraper:
             logger.warning("No meteorites found in listing")
             return []
 
+        total_in_listing = len(meteorite_links)
+
+        # Skip first N meteorites if requested
+        if start_at > 0:
+            if start_at >= total_in_listing:
+                logger.warning(f"start_at ({start_at}) >= total meteorites ({total_in_listing}), nothing to scrape")
+                return []
+
+            skipped = meteorite_links[:start_at]
+            logger.info(f"Skipping first {start_at} meteorites ({skipped[0][0]} through {skipped[-1][0]})")
+            meteorite_links = meteorite_links[start_at:]
+
         # Limit if requested
         if max_meteorites:
             meteorite_links = meteorite_links[:max_meteorites]
@@ -340,7 +353,9 @@ class MeteoriticalBulletinScraper:
         total = len(meteorite_links)
 
         for idx, (name, url) in enumerate(meteorite_links, 1):
-            logger.info(f"[{idx}/{total}] Scraping photos for: {name}")
+            # Show absolute position in listing
+            absolute_idx = idx + start_at
+            logger.info(f"[{idx}/{total}] (#{absolute_idx}/{total_in_listing} overall) Scraping photos for: {name}")
 
             try:
                 self.driver.get(url)
