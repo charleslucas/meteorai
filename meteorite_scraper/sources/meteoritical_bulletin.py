@@ -109,12 +109,12 @@ class MeteoriticalBulletinScraper:
             logger.info(f"Page title: {self.driver.title}")
 
             # Debug: Print received HTML
-            logger.info("=" * 80)
-            logger.info("Received HTML:")
-            logger.info("*************************************************")
-            logger.info(self.driver.page_source)
-            logger.info("*************************************************")
-            logger.info("=" * 80)
+            #logger.info("=" * 80)
+            #logger.info("Received HTML:")
+            #logger.info("*************************************************")
+            #logger.info(self.driver.page_source)
+            #logger.info("*************************************************")
+            #logger.info("=" * 80)
 
             # Get page source and parse with BeautifulSoup
             soup = BeautifulSoup(self.driver.page_source, 'html.parser')

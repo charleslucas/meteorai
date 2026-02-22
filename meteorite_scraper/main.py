@@ -46,6 +46,11 @@ def main():
         action='store_false',
         help='Run browser with visible window (recommended for Cloudflare bypass)'
     )
+    parser.add_argument(
+        '--max-meteorites',
+        type=int,
+        help='Maximum number of meteorites to scrape (useful for testing or batching)'
+    )
     parser.set_defaults(headless=False)
 
     args = parser.parse_args()
@@ -69,6 +74,13 @@ def main():
         bulletin_scraper = MeteoriticalBulletinScraper(headless=args.headless)
         if args.meteorites:
             bulletin_scraper.meteorite_names = args.meteorites
+
+        # Pass max_meteorites to get_images via a wrapper
+        original_get_images = bulletin_scraper.get_images
+        if args.max_meteorites:
+            logger.info(f"Limiting to {args.max_meteorites} meteorites")
+            bulletin_scraper.get_images = lambda: original_get_images(max_meteorites=args.max_meteorites)
+
         scraper.scrape_source(bulletin_scraper, 'meteoritical_bulletin')
     
     if args.source in ['all', 'nasa']:

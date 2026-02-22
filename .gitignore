@@ -1,3 +1,6 @@
 __pycache__
 db_config.py
+images/
+metadata/
+logs/
 .env
