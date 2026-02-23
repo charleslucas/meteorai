@@ -33,11 +33,11 @@ class DatabaseManager:
         """Insert a meteorite record and return the image_id"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            
+
             query = """
                 INSERT INTO meteorites (
-                    meteorite_name, original_filename, stored_filename, 
-                    source_url, page_url, file_format, file_size_bytes,
+                    meteorite_name, original_filename, stored_filename,
+                    source_url, page_url, photo_page_url, file_format, file_size_bytes,
                     width_px, height_px, primary_type, secondary_type,
                     detailed_classification, mass_grams, fall_or_find,
                     discovery_date, discovery_location, discovery_latitude,
@@ -46,7 +46,7 @@ class DatabaseManager:
                     license, photographer, data_confidence, needs_review, notes
                 ) VALUES (
                     %(meteorite_name)s, %(original_filename)s, %(stored_filename)s,
-                    %(source_url)s, %(page_url)s, %(file_format)s, %(file_size_bytes)s,
+                    %(source_url)s, %(page_url)s, %(photo_page_url)s, %(file_format)s, %(file_size_bytes)s,
                     %(width_px)s, %(height_px)s, %(primary_type)s, %(secondary_type)s,
                     %(detailed_classification)s, %(mass_grams)s, %(fall_or_find)s,
                     %(discovery_date)s, %(discovery_location)s, %(discovery_latitude)s,
@@ -56,7 +56,7 @@ class DatabaseManager:
                 )
                 RETURNING image_id
             """
-            
+
             cursor.execute(query, data)
             image_id = cursor.fetchone()[0]
             logger.info(f"Inserted meteorite record with ID: {image_id}")
@@ -71,7 +71,44 @@ class DatabaseManager:
                 (url,)
             )
             return cursor.fetchone()[0] > 0
-    
+
+    def photo_page_url_exists(self, photo_page_url):
+        """Check if a photo page URL has already been processed"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT COUNT(*) FROM meteorites WHERE photo_page_url = %s",
+                (photo_page_url,)
+            )
+            return cursor.fetchone()[0] > 0
+
+    def update_photo_page_url(self, source_url, photo_page_url):
+        """
+        Update an existing record to add the photo_page_url.
+
+        Args:
+            source_url: The actual image URL (source_url in database)
+            photo_page_url: The photo page URL to add
+
+        Returns:
+            True if updated, False if record not found
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE meteorites
+                SET photo_page_url = %s
+                WHERE source_url = %s AND (photo_page_url IS NULL OR photo_page_url = '')
+                """,
+                (photo_page_url, source_url)
+            )
+            rows_updated = cursor.rowcount
+            if rows_updated > 0:
+                logger.info(f"Updated photo_page_url for existing image: {source_url}")
+                return True
+            return False
+
     def get_meteorite_by_id(self, image_id):
         """Retrieve a meteorite record by ID"""
         with self.get_connection() as conn:

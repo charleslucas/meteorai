@@ -81,6 +81,14 @@ class MeteoriteImageScraper:
             # Check if already scraped
             if self.db.url_exists(image_url):
                 logger.info(f"Image already exists: {image_url}")
+
+                # If we have a photo_page_url in metadata, update the existing record
+                photo_page_url = metadata.get('photo_page_url')
+                if photo_page_url:
+                    updated = self.db.update_photo_page_url(image_url, photo_page_url)
+                    if updated:
+                        logger.info(f"  → Linked photo page URL to existing image")
+
                 self.stats['images_skipped'] += 1
                 return None
             
@@ -127,6 +135,7 @@ class MeteoriteImageScraper:
                 'stored_filename': filename,
                 'source_url': image_url,
                 'page_url': metadata.get('page_url'),
+                'photo_page_url': metadata.get('photo_page_url'),
                 'file_format': extension,
                 'file_size_bytes': image_info['size_bytes'],
                 'width_px': image_info['width'],

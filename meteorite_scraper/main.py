@@ -77,7 +77,8 @@ def main():
     # Scrape from selected sources
     if args.source in ['all', 'meteoritical']:
         logger.info("Scraping Meteoritical Bulletin")
-        bulletin_scraper = MeteoriticalBulletinScraper(headless=args.headless)
+        # Pass database instance for duplicate checking
+        bulletin_scraper = MeteoriticalBulletinScraper(headless=args.headless, db=scraper.db)
         if args.meteorites:
             bulletin_scraper.meteorite_names = args.meteorites
 

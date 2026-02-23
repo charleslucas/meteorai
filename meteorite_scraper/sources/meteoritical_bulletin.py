@@ -22,17 +22,21 @@ class MeteoriticalBulletinScraper:
     # Default listing URL for meteorites with photos
     LISTING_URL = "https://www.lpi.usra.edu/meteor/metbull.cfm?sfor=names&stype=contains&sea=*&country=All&categ=All&ants=no&falls=yes&nwas=no&phot=yes&map=ge&srt=name&page=0&lrec=1000&pnt=Normal+table&mblist=All&snew=0"
 
-    def __init__(self, headless=True):
+    def __init__(self, headless=True, db=None):
         """
         Initialize the scraper with Selenium.
 
         Args:
             headless: Run Chrome in headless mode (default True)
+            db: DatabaseManager instance for checking duplicates (optional)
         """
         if not USING_SELENIUM:
             raise ImportError("Selenium is required. Install with: pip install selenium undetected-chromedriver")
 
         logger.info("Initializing Selenium with undetected-chromedriver...")
+
+        # Store database reference for duplicate checking
+        self.db = db
 
         # Create undetected Chrome driver
         # Note: undetected-chromedriver handles most anti-detection automatically
@@ -380,19 +384,33 @@ class MeteoriticalBulletinScraper:
         # Resolve photo page URLs to actual image URLs
         logger.info("Resolving photo page URLs to actual images...")
         resolved_images = []
+        skipped_count = 0
+
         for image_data in all_images:
             if image_data['metadata'].get('is_photo_page'):
+                photo_page_url = image_data['url']
+
+                # Check database first to avoid HTTP request if already processed
+                if self.db and self.db.photo_page_url_exists(photo_page_url):
+                    logger.debug(f"Photo page already processed (skipping): {photo_page_url}")
+                    skipped_count += 1
+                    continue
+
                 # This is a photo detail page, need to resolve it
-                actual_url = self.resolve_photo_page(image_data['url'])
+                actual_url = self.resolve_photo_page(photo_page_url)
                 if actual_url:
+                    # Store the original photo page URL before updating
+                    image_data['metadata']['photo_page_url'] = photo_page_url
+
                     # Update with the actual image URL
                     image_data['url'] = actual_url
+
                     # Remove the flag since it's now resolved
                     image_data['metadata']['is_photo_page'] = False
                     resolved_images.append(image_data)
-                    logger.debug(f"Resolved to: {actual_url}")
+                    logger.debug(f"Resolved {photo_page_url} to: {actual_url}")
                 else:
-                    logger.warning(f"Failed to resolve photo page: {image_data['url']}")
+                    logger.warning(f"Failed to resolve photo page: {photo_page_url}")
 
                 # Rate limiting between photo page visits
                 time.sleep(1)
@@ -400,14 +418,23 @@ class MeteoriticalBulletinScraper:
                 # Already a direct image URL
                 resolved_images.append(image_data)
 
+        if skipped_count > 0:
+            logger.info(f"Skipped {skipped_count} photo pages (already in database)")
+
         logger.info(f"Successfully resolved {len(resolved_images)} image URLs")
         return resolved_images
 
     def close(self):
         """Close the Selenium driver"""
-        if hasattr(self, 'driver'):
-            logger.info("Closing Selenium driver...")
-            self.driver.quit()
+        if hasattr(self, 'driver') and self.driver is not None:
+            try:
+                logger.info("Closing Selenium driver...")
+                self.driver.quit()
+                self.driver = None  # Mark as closed
+            except (OSError, Exception) as e:
+                # Ignore errors during cleanup (driver might already be closed)
+                logger.debug(f"Error during driver cleanup (can be ignored): {e}")
+                self.driver = None
 
     def __enter__(self):
         """Context manager entry"""
@@ -419,4 +446,9 @@ class MeteoriticalBulletinScraper:
 
     def __del__(self):
         """Cleanup on deletion"""
-        self.close()
+        try:
+            self.close()
+        except:
+            # Suppress all exceptions during garbage collection
+            # Logger and other resources might already be cleaned up
+            pass
