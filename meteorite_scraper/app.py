@@ -14,6 +14,21 @@ db = DatabaseManager()
 st.set_page_config(page_title="Meteorite Browser", layout="wide")
 st.title("Meteorite Browser")
 
+# Custom CSS for red delete buttons
+st.markdown("""
+<style>
+    .row-delete button {
+        background-color: #d32f2f !important;
+        color: white !important;
+        border: none !important;
+    }
+    .row-delete button:hover {
+        background-color: #b71c1c !important;
+        color: white !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # --- Sidebar Filters ---
 st.sidebar.header("Filters")
 
@@ -30,6 +45,8 @@ try:
 except Exception:
     image_contexts = ["All"]
 
+photo_types = ["All", "Fall", "Staged", "Sectioned"]
+selected_photo_type = st.sidebar.selectbox("Photo type", photo_types)
 selected_type = st.sidebar.selectbox("Primary type", primary_types)
 selected_context = st.sidebar.selectbox("Image context", image_contexts)
 filter_needs_review = st.sidebar.checkbox("Needs review only")
@@ -38,6 +55,8 @@ filter_needs_review = st.sidebar.checkbox("Needs review only")
 filters = {}
 if name_search:
     filters['meteorite_name'] = name_search
+if selected_photo_type != "All":
+    filters['photo_type'] = selected_photo_type
 if selected_type != "All":
     filters['primary_type'] = selected_type
 if selected_context != "All":
@@ -52,8 +71,47 @@ if 'confirm_delete' not in st.session_state:
     st.session_state.confirm_delete = False
 if 'page' not in st.session_state:
     st.session_state.page = 0
+if 'list_confirm_delete' not in st.session_state:
+    st.session_state.list_confirm_delete = None
 
 PAGE_SIZE = 25
+
+
+def _show_pagination(max_page, position):
+    """Show pagination controls. Position is used to create unique button keys."""
+    col_first, col_prev, col_info, col_next, col_last, col_goto = st.columns([0.7, 0.9, 1.5, 0.7, 0.7, 1.5])
+    with col_first:
+        if st.session_state.page > 0:
+            if st.button("First", key=f"first_{position}"):
+                st.session_state.page = 0
+                st.rerun()
+    with col_prev:
+        if st.session_state.page > 0:
+            if st.button("Previous", key=f"prev_{position}"):
+                st.session_state.page -= 1
+                st.rerun()
+    with col_info:
+        st.write(f"Page {st.session_state.page + 1} of {max_page + 1}")
+    with col_next:
+        if st.session_state.page < max_page:
+            if st.button("Next", key=f"next_{position}"):
+                st.session_state.page += 1
+                st.rerun()
+    with col_last:
+        if st.session_state.page < max_page:
+            if st.button("Last", key=f"last_{position}"):
+                st.session_state.page = max_page
+                st.rerun()
+    with col_goto:
+        def _goto_page(key):
+            st.session_state.page = st.session_state[key] - 1
+
+        gkey = f"goto_{position}"
+        # Sync widget state with current page to avoid stale values
+        st.session_state[gkey] = st.session_state.page + 1
+        st.number_input("Go to page", min_value=1, max_value=max_page + 1,
+                        step=1, key=gkey, label_visibility="collapsed",
+                        on_change=_goto_page, args=(gkey,))
 
 
 def show_browse_view():
@@ -85,39 +143,87 @@ def show_browse_view():
         st.error(f"Database error: {e}")
         return
 
+    # Pagination controls (top)
+    _show_pagination(max_page, "top")
+
+    # Column headers
+    col_act, col_id, col_thumb, col_name, col_pt, col_pq, col_type, col_class, col_ctx, col_del = st.columns([1, 0.5, 1, 2.5, 1.5, 1.5, 2, 2, 2, 1])
+    with col_act:
+        st.markdown("**Action**")
+    with col_id:
+        st.markdown("**ID**")
+    with col_thumb:
+        st.markdown("**Image**")
+    with col_name:
+        st.markdown("**Name**")
+    with col_pt:
+        st.markdown("**Photo Type**")
+    with col_pq:
+        st.markdown("**Photo Quality**")
+    with col_type:
+        st.markdown("**Primary Type**")
+    with col_class:
+        st.markdown("**Classification**")
+    with col_ctx:
+        st.markdown("**Context**")
+    with col_del:
+        st.markdown("**Delete**")
+
     # Display table
     for row in rows:
-        col1, col2, col3, col4, col5, col6 = st.columns([1, 3, 2, 2, 2, 1])
-        with col1:
-            st.write(row['image_id'])
-        with col2:
-            st.write(row.get('meteorite_name', '—'))
-        with col3:
-            st.write(row.get('primary_type', '—') or '—')
-        with col4:
-            st.write(row.get('detailed_classification', '—') or '—')
-        with col5:
-            st.write(row.get('image_context', '—') or '—')
-        with col6:
+        col_act, col_id, col_thumb, col_name, col_pt, col_pq, col_type, col_class, col_ctx, col_del = st.columns([1, 0.5, 1, 2.5, 1.5, 1.5, 2, 2, 2, 1])
+        with col_act:
             if st.button("View", key=f"view_{row['image_id']}"):
                 st.session_state.selected_id = row['image_id']
                 st.session_state.confirm_delete = False
+                st.session_state.list_confirm_delete = None
                 st.rerun()
+        with col_id:
+            st.write(row['image_id'])
+        with col_thumb:
+            stored_filename = row.get('stored_filename', '')
+            image_path = IMAGES_DIR / stored_filename if stored_filename else None
+            if image_path and image_path.exists():
+                st.image(str(image_path), width=60)
+        with col_name:
+            st.write(row.get('meteorite_name', '—'))
+        with col_pt:
+            st.write(row.get('photo_type', '—') or '—')
+        with col_pq:
+            st.write(row.get('photo_quality', '—') or '—')
+        with col_type:
+            st.write(row.get('primary_type', '—') or '—')
+        with col_class:
+            st.write(row.get('detailed_classification', '—') or '—')
+        with col_ctx:
+            st.write(row.get('image_context', '—') or '—')
+        with col_del:
+            rid = row['image_id']
+            if st.session_state.list_confirm_delete == rid:
+                if st.button("Confirm", key=f"confirm_del_{rid}"):
+                    try:
+                        stored_fn = db.delete_meteorite(rid)
+                        if stored_fn:
+                            img_p = IMAGES_DIR / stored_fn
+                            if img_p.exists():
+                                img_p.unlink()
+                            json_p = METADATA_DIR / (Path(stored_fn).stem + ".json")
+                            if json_p.exists():
+                                json_p.unlink()
+                        st.session_state.list_confirm_delete = None
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+            else:
+                with st.container():
+                    st.markdown('<div class="row-delete">', unsafe_allow_html=True)
+                    if st.button("Delete", key=f"del_{rid}"):
+                        st.session_state.list_confirm_delete = rid
+                        st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
 
-    # Pagination controls
-    col_prev, col_info, col_next = st.columns([1, 2, 1])
-    with col_prev:
-        if st.session_state.page > 0:
-            if st.button("Previous"):
-                st.session_state.page -= 1
-                st.rerun()
-    with col_info:
-        st.write(f"Page {st.session_state.page + 1} of {max_page + 1}")
-    with col_next:
-        if st.session_state.page < max_page:
-            if st.button("Next"):
-                st.session_state.page += 1
-                st.rerun()
+    # Pagination controls (bottom)
+    _show_pagination(max_page, "bottom")
 
 
 def show_detail_view(image_id):
@@ -146,7 +252,7 @@ def show_detail_view(image_id):
         stored_filename = record.get('stored_filename', '')
         image_path = IMAGES_DIR / stored_filename if stored_filename else None
         if image_path and image_path.exists():
-            st.image(str(image_path), use_container_width=True)
+            st.image(str(image_path), width="stretch")
         else:
             st.warning("Image file not found on disk")
 
@@ -157,6 +263,26 @@ def show_detail_view(image_id):
     # Edit form
     with info_col:
         with st.form("edit_form"):
+            submitted = st.form_submit_button("Save Changes")
+
+            st.markdown("#### Image Context")
+            photo_type_options = ["", "Fall", "Staged", "Sectioned"]
+            photo_type = st.selectbox("Photo type", photo_type_options,
+                                      index=photo_type_options.index(record.get('photo_type', '') or ''))
+            photo_quality_options = ["", "High", "Medium", "Low"]
+            photo_quality = st.selectbox("Photo quality", photo_quality_options,
+                                         index=photo_quality_options.index(record.get('photo_quality', '') or ''))
+            image_context = st.text_input("Image context", value=record.get('image_context', '') or '')
+            viewing_angle = st.text_input("Viewing angle", value=record.get('viewing_angle', '') or '')
+            background_type = st.text_input("Background type", value=record.get('background_type', '') or '')
+            lighting_type = st.text_input("Lighting type", value=record.get('lighting_type', '') or '')
+
+            st.markdown("#### Metadata")
+            data_confidence = st.selectbox("Data confidence", ["", "low", "medium", "high"],
+                                           index=["", "low", "medium", "high"].index(record.get('data_confidence', '') or ''))
+            needs_review = st.checkbox("Needs review", value=bool(record.get('needs_review')))
+            notes = st.text_area("Notes", value=record.get('notes', '') or '')
+
             st.markdown("#### Classification")
             meteorite_name = st.text_input("Name", value=record.get('meteorite_name', '') or '')
             primary_type = st.text_input("Primary type", value=record.get('primary_type', '') or '')
@@ -177,20 +303,6 @@ def show_detail_view(image_id):
             discovery_latitude = st.text_input("Latitude", value=str(record.get('discovery_latitude', '') or ''))
             discovery_longitude = st.text_input("Longitude", value=str(record.get('discovery_longitude', '') or ''))
             terrain_type = st.text_input("Terrain type", value=record.get('terrain_type', '') or '')
-
-            st.markdown("#### Image Context")
-            image_context = st.text_input("Image context", value=record.get('image_context', '') or '')
-            viewing_angle = st.text_input("Viewing angle", value=record.get('viewing_angle', '') or '')
-            background_type = st.text_input("Background type", value=record.get('background_type', '') or '')
-            lighting_type = st.text_input("Lighting type", value=record.get('lighting_type', '') or '')
-
-            st.markdown("#### Metadata")
-            data_confidence = st.selectbox("Data confidence", ["", "low", "medium", "high"],
-                                           index=["", "low", "medium", "high"].index(record.get('data_confidence', '') or ''))
-            needs_review = st.checkbox("Needs review", value=bool(record.get('needs_review')))
-            notes = st.text_area("Notes", value=record.get('notes', '') or '')
-
-            submitted = st.form_submit_button("Save Changes")
 
             if submitted:
                 def to_decimal(val):
@@ -216,6 +328,8 @@ def show_detail_view(image_id):
                     'discovery_latitude': to_decimal(discovery_latitude),
                     'discovery_longitude': to_decimal(discovery_longitude),
                     'terrain_type': terrain_type or None,
+                    'photo_type': photo_type or None,
+                    'photo_quality': photo_quality or None,
                     'image_context': image_context or None,
                     'viewing_angle': viewing_angle or None,
                     'background_type': background_type or None,
@@ -266,23 +380,16 @@ def show_detail_view(image_id):
                 st.session_state.confirm_delete = False
                 st.rerun()
 
+    # Bottom back button
+    st.divider()
+    if st.button("Back to list", key="back_bottom"):
+        st.session_state.selected_id = None
+        st.session_state.confirm_delete = False
+        st.rerun()
+
 
 # --- Main routing ---
 if st.session_state.selected_id is not None:
     show_detail_view(st.session_state.selected_id)
 else:
-    # Column headers
-    col1, col2, col3, col4, col5, col6 = st.columns([1, 3, 2, 2, 2, 1])
-    with col1:
-        st.markdown("**ID**")
-    with col2:
-        st.markdown("**Name**")
-    with col3:
-        st.markdown("**Type**")
-    with col4:
-        st.markdown("**Classification**")
-    with col5:
-        st.markdown("**Context**")
-    with col6:
-        st.markdown("**Action**")
     show_browse_view()

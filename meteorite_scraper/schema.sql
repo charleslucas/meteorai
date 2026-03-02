@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS meteorites (
     terrain_type VARCHAR(100),
     
     -- Context (crucial for ML)
+    photo_type VARCHAR(20),
+    photo_quality VARCHAR(20),
     image_context VARCHAR(50),
     viewing_angle VARCHAR(50),
     background_type VARCHAR(100),

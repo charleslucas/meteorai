@@ -176,6 +176,9 @@ class DatabaseManager:
                 if filters.get('meteorite_name'):
                     where_clauses.append("meteorite_name ILIKE %s")
                     params.append(f"%{filters['meteorite_name']}%")
+                if filters.get('photo_type'):
+                    where_clauses.append("photo_type = %s")
+                    params.append(filters['photo_type'])
                 if filters.get('primary_type'):
                     where_clauses.append("primary_type = %s")
                     params.append(filters['primary_type'])
@@ -193,7 +196,7 @@ class DatabaseManager:
             query = f"""
                 SELECT * FROM meteorites
                 {where_sql}
-                ORDER BY image_id DESC
+                ORDER BY image_id ASC
                 LIMIT %s OFFSET %s
             """
             params.extend([limit, offset])
@@ -213,6 +216,9 @@ class DatabaseManager:
                 if filters.get('meteorite_name'):
                     where_clauses.append("meteorite_name ILIKE %s")
                     params.append(f"%{filters['meteorite_name']}%")
+                if filters.get('photo_type'):
+                    where_clauses.append("photo_type = %s")
+                    params.append(filters['photo_type'])
                 if filters.get('primary_type'):
                     where_clauses.append("primary_type = %s")
                     params.append(filters['primary_type'])
@@ -233,7 +239,8 @@ class DatabaseManager:
     def get_distinct_values(self, column):
         """Get distinct non-null values for a column (for filter dropdowns)"""
         allowed_columns = {'primary_type', 'secondary_type', 'image_context',
-                           'fall_or_find', 'data_confidence', 'terrain_type'}
+                           'fall_or_find', 'data_confidence', 'terrain_type',
+                           'photo_type'}
         if column not in allowed_columns:
             raise ValueError(f"Column '{column}' not allowed for distinct query")
 
