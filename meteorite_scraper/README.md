@@ -49,6 +49,16 @@ python main.py --stats
 python main.py --log-level DEBUG
 ```
 
+### Browse and edit meteorites (Streamlit app):
+```bash
+streamlit run app.py
+```
+Opens a local web UI where you can:
+- Browse meteorites in a paginated table
+- Filter by name, primary type, image context, or needs-review status
+- View meteorite images and edit all metadata fields
+- Delete a meteorite (removes the database record, image file, and JSON sidecar)
+
 ## Project Structure
 ```
 meteorite_scraper/
@@ -57,6 +67,7 @@ meteorite_scraper/
 ├── scraper.py             # Main scraper logic
 ├── utils.py               # Helper functions
 ├── main.py                # Entry point
+├── app.py                 # Streamlit browser/editor UI
 ├── sources/               # Source-specific scrapers
 │   ├── meteoritical_bulletin.py
 │   ├── nasa_curator.py

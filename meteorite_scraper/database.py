@@ -163,3 +163,121 @@ class DatabaseManager:
             stats['needs_review'] = cursor.fetchone()['count']
             
             return stats
+
+    def get_all_meteorites(self, filters=None, limit=50, offset=0):
+        """Get paginated list of meteorites with optional filters"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+            where_clauses = []
+            params = []
+
+            if filters:
+                if filters.get('meteorite_name'):
+                    where_clauses.append("meteorite_name ILIKE %s")
+                    params.append(f"%{filters['meteorite_name']}%")
+                if filters.get('primary_type'):
+                    where_clauses.append("primary_type = %s")
+                    params.append(filters['primary_type'])
+                if filters.get('image_context'):
+                    where_clauses.append("image_context = %s")
+                    params.append(filters['image_context'])
+                if filters.get('needs_review') is not None:
+                    where_clauses.append("needs_review = %s")
+                    params.append(filters['needs_review'])
+
+            where_sql = ""
+            if where_clauses:
+                where_sql = "WHERE " + " AND ".join(where_clauses)
+
+            query = f"""
+                SELECT * FROM meteorites
+                {where_sql}
+                ORDER BY image_id DESC
+                LIMIT %s OFFSET %s
+            """
+            params.extend([limit, offset])
+
+            cursor.execute(query, params)
+            return cursor.fetchall()
+
+    def get_meteorite_count(self, filters=None):
+        """Get total count of meteorites matching filters"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            where_clauses = []
+            params = []
+
+            if filters:
+                if filters.get('meteorite_name'):
+                    where_clauses.append("meteorite_name ILIKE %s")
+                    params.append(f"%{filters['meteorite_name']}%")
+                if filters.get('primary_type'):
+                    where_clauses.append("primary_type = %s")
+                    params.append(filters['primary_type'])
+                if filters.get('image_context'):
+                    where_clauses.append("image_context = %s")
+                    params.append(filters['image_context'])
+                if filters.get('needs_review') is not None:
+                    where_clauses.append("needs_review = %s")
+                    params.append(filters['needs_review'])
+
+            where_sql = ""
+            if where_clauses:
+                where_sql = "WHERE " + " AND ".join(where_clauses)
+
+            cursor.execute(f"SELECT COUNT(*) FROM meteorites {where_sql}", params)
+            return cursor.fetchone()[0]
+
+    def get_distinct_values(self, column):
+        """Get distinct non-null values for a column (for filter dropdowns)"""
+        allowed_columns = {'primary_type', 'secondary_type', 'image_context',
+                           'fall_or_find', 'data_confidence', 'terrain_type'}
+        if column not in allowed_columns:
+            raise ValueError(f"Column '{column}' not allowed for distinct query")
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                f"SELECT DISTINCT {column} FROM meteorites WHERE {column} IS NOT NULL ORDER BY {column}"
+            )
+            return [row[0] for row in cursor.fetchall()]
+
+    def update_meteorite(self, image_id, data):
+        """Update editable fields for a meteorite record"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            set_clauses = []
+            params = []
+            for key, value in data.items():
+                set_clauses.append(f"{key} = %s")
+                params.append(value)
+
+            params.append(image_id)
+            query = f"""
+                UPDATE meteorites
+                SET {', '.join(set_clauses)}
+                WHERE image_id = %s
+            """
+            cursor.execute(query, params)
+            logger.info(f"Updated meteorite record {image_id}")
+            return cursor.rowcount > 0
+
+    def delete_meteorite(self, image_id):
+        """Delete a meteorite record and return the stored_filename for file cleanup"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT stored_filename FROM meteorites WHERE image_id = %s",
+                (image_id,)
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+
+            stored_filename = row[0]
+            cursor.execute("DELETE FROM meteorites WHERE image_id = %s", (image_id,))
+            logger.info(f"Deleted meteorite record {image_id} ({stored_filename})")
+            return stored_filename
