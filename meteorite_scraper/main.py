@@ -7,15 +7,13 @@ import argparse
 import logging
 from scraper import MeteoriteImageScraper
 from sources.meteoritical_bulletin import MeteoriticalBulletinScraper
-from sources.nasa_curator import NASACuratorScraper
-from sources.museum_scraper import MuseumScraper
 from utils import setup_logging
 
 def main():
     parser = argparse.ArgumentParser(description='Scrape meteorite images from various sources')
     parser.add_argument(
         '--source',
-        choices=['all', 'meteoritical', 'nasa', 'museums'],
+        choices=['all', 'meteoritical'],
         default='all',
         help='Which source to scrape'
     )
@@ -95,16 +93,6 @@ def main():
             )
 
         scraper.scrape_source(bulletin_scraper, 'meteoritical_bulletin')
-    
-    if args.source in ['all', 'nasa']:
-        logger.info("Scraping NASA collections")
-        nasa_scraper = NASACuratorScraper(scraper.session)
-        scraper.scrape_source(nasa_scraper, 'nasa_curator')
-    
-    if args.source in ['all', 'museums']:
-        logger.info("Scraping museum collections")
-        museum_scraper = MuseumScraper('https://example.com', scraper.session)
-        scraper.scrape_source(museum_scraper, 'museums')
     
     # Print final statistics
     scraper.print_statistics()
