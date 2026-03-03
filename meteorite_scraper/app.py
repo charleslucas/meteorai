@@ -1,13 +1,16 @@
 import streamlit as st
 import sys
 import os
+import requests
+import io
 from pathlib import Path
 
 # Add the meteorite_scraper directory to path so imports work
 sys.path.insert(0, str(Path(__file__).parent))
 
 from database import DatabaseManager
-from config import IMAGES_DIR, METADATA_DIR
+from config import IMAGES_DIR, METADATA_DIR, SCRAPE_CONFIG
+from utils import generate_filename, validate_image, save_metadata_json
 
 db = DatabaseManager()
 
@@ -45,8 +48,7 @@ try:
 except Exception:
     image_contexts = ["All"]
 
-photo_types = ["All", "Fall", "Staged", "Sectioned"]
-selected_photo_type = st.sidebar.selectbox("Photo type", photo_types)
+filter_in_situ = st.sidebar.checkbox("In Situ only")
 selected_type = st.sidebar.selectbox("Primary type", primary_types)
 selected_context = st.sidebar.selectbox("Image context", image_contexts)
 filter_needs_review = st.sidebar.checkbox("Needs review only")
@@ -55,8 +57,8 @@ filter_needs_review = st.sidebar.checkbox("Needs review only")
 filters = {}
 if name_search:
     filters['meteorite_name'] = name_search
-if selected_photo_type != "All":
-    filters['photo_type'] = selected_photo_type
+if filter_in_situ:
+    filters['in_situ'] = True
 if selected_type != "All":
     filters['primary_type'] = selected_type
 if selected_context != "All":
@@ -65,6 +67,8 @@ if filter_needs_review:
     filters['needs_review'] = True
 
 # --- Session state ---
+if 'view' not in st.session_state:
+    st.session_state.view = 'browse'
 if 'selected_id' not in st.session_state:
     st.session_state.selected_id = None
 if 'confirm_delete' not in st.session_state:
@@ -116,6 +120,10 @@ def _show_pagination(max_page, position):
 
 def show_browse_view():
     """Show the paginated table of meteorites."""
+    if st.button("New Meteorite", type="primary"):
+        st.session_state.view = 'add_new'
+        st.rerun()
+
     try:
         total = db.get_meteorite_count(filters if filters else None)
     except Exception as e:
@@ -147,17 +155,19 @@ def show_browse_view():
     _show_pagination(max_page, "top")
 
     # Column headers
-    col_act, col_id, col_thumb, col_name, col_pt, col_pq, col_type, col_class, col_ctx, col_del = st.columns([1, 0.5, 1, 2.5, 1.5, 1.5, 2, 2, 2, 1])
+    col_act, col_id, col_thumb, col_nr, col_name, col_pt, col_pq, col_type, col_class, col_ctx, col_del = st.columns([1, 0.5, 1, 1, 2.5, 1.5, 1.5, 2, 2, 2, 1])
     with col_act:
         st.markdown("**Action**")
     with col_id:
         st.markdown("**ID**")
     with col_thumb:
         st.markdown("**Image**")
+    with col_nr:
+        st.markdown("**Needs Review**")
     with col_name:
         st.markdown("**Name**")
     with col_pt:
-        st.markdown("**Photo Type**")
+        st.markdown('<div style="text-align:center"><strong>In Situ</strong></div>', unsafe_allow_html=True)
     with col_pq:
         st.markdown("**Photo Quality**")
     with col_type:
@@ -171,10 +181,11 @@ def show_browse_view():
 
     # Display table
     for row in rows:
-        col_act, col_id, col_thumb, col_name, col_pt, col_pq, col_type, col_class, col_ctx, col_del = st.columns([1, 0.5, 1, 2.5, 1.5, 1.5, 2, 2, 2, 1])
+        col_act, col_id, col_thumb, col_nr, col_name, col_pt, col_pq, col_type, col_class, col_ctx, col_del = st.columns([1, 0.5, 1, 1, 2.5, 1.5, 1.5, 2, 2, 2, 1])
         with col_act:
             if st.button("View", key=f"view_{row['image_id']}"):
                 st.session_state.selected_id = row['image_id']
+                st.session_state.view = 'detail'
                 st.session_state.confirm_delete = False
                 st.session_state.list_confirm_delete = None
                 st.rerun()
@@ -185,10 +196,18 @@ def show_browse_view():
             image_path = IMAGES_DIR / stored_filename if stored_filename else None
             if image_path and image_path.exists():
                 st.image(str(image_path), width=60)
+        with col_nr:
+            st.markdown(
+                f'<div style="text-align:center">{"&#9745;" if row.get("needs_review") else "&#9744;"}</div>',
+                unsafe_allow_html=True
+            )
         with col_name:
             st.write(row.get('meteorite_name', '—'))
         with col_pt:
-            st.write(row.get('photo_type', '—') or '—')
+            st.markdown(
+                f'<div style="text-align:center">{"&#9745;" if row.get("in_situ") else "&#9744;"}</div>',
+                unsafe_allow_html=True
+            )
         with col_pq:
             st.write(row.get('photo_quality', '—') or '—')
         with col_type:
@@ -225,11 +244,16 @@ def show_browse_view():
     # Pagination controls (bottom)
     _show_pagination(max_page, "bottom")
 
+    if st.button("New Meteorite", type="primary", key="new_meteorite_bottom"):
+        st.session_state.view = 'add_new'
+        st.rerun()
+
 
 def show_detail_view(image_id):
     """Show detail/edit view for a single meteorite."""
     if st.button("Back to list"):
         st.session_state.selected_id = None
+        st.session_state.view = 'browse'
         st.session_state.confirm_delete = False
         st.rerun()
 
@@ -266,9 +290,10 @@ def show_detail_view(image_id):
             submitted = st.form_submit_button("Save Changes")
 
             st.markdown("#### Image Context")
-            photo_type_options = ["", "Fall", "Staged", "Sectioned"]
-            photo_type = st.selectbox("Photo type", photo_type_options,
-                                      index=photo_type_options.index(record.get('photo_type', '') or ''))
+            in_situ = st.checkbox("In Situ", value=bool(record.get('in_situ')))
+            sectioned = st.checkbox("Sectioned", value=bool(record.get('sectioned')))
+            needs_review = st.checkbox("Needs review", value=bool(record.get('needs_review')))
+            parent_url = st.text_input("Parent URL", value=record.get('parent_url', '') or '')
             photo_quality_options = ["", "High", "Medium", "Low"]
             photo_quality = st.selectbox("Photo quality", photo_quality_options,
                                          index=photo_quality_options.index(record.get('photo_quality', '') or ''))
@@ -277,10 +302,6 @@ def show_detail_view(image_id):
             background_type = st.text_input("Background type", value=record.get('background_type', '') or '')
             lighting_type = st.text_input("Lighting type", value=record.get('lighting_type', '') or '')
 
-            st.markdown("#### Metadata")
-            data_confidence = st.selectbox("Data confidence", ["", "low", "medium", "high"],
-                                           index=["", "low", "medium", "high"].index(record.get('data_confidence', '') or ''))
-            needs_review = st.checkbox("Needs review", value=bool(record.get('needs_review')))
             notes = st.text_area("Notes", value=record.get('notes', '') or '')
 
             st.markdown("#### Classification")
@@ -328,14 +349,15 @@ def show_detail_view(image_id):
                     'discovery_latitude': to_decimal(discovery_latitude),
                     'discovery_longitude': to_decimal(discovery_longitude),
                     'terrain_type': terrain_type or None,
-                    'photo_type': photo_type or None,
+                    'in_situ': in_situ,
+                    'sectioned': sectioned,
                     'photo_quality': photo_quality or None,
                     'image_context': image_context or None,
                     'viewing_angle': viewing_angle or None,
                     'background_type': background_type or None,
                     'lighting_type': lighting_type or None,
-                    'data_confidence': data_confidence or None,
                     'needs_review': needs_review,
+                    'parent_url': parent_url or None,
                     'notes': notes or None,
                 }
 
@@ -384,12 +406,181 @@ def show_detail_view(image_id):
     st.divider()
     if st.button("Back to list", key="back_bottom"):
         st.session_state.selected_id = None
+        st.session_state.view = 'browse'
         st.session_state.confirm_delete = False
         st.rerun()
 
 
+def _fetch_and_store_image(url):
+    """Download an image from a URL, validate it, and save to disk. Returns (filename, image_info) or raises."""
+    response = requests.get(url, headers=SCRAPE_CONFIG.get('headers', {}),
+                            timeout=SCRAPE_CONFIG['request_timeout'])
+    response.raise_for_status()
+    image_data = response.content
+
+    image_info = validate_image(image_data)
+    if not image_info:
+        raise ValueError("Image validation failed — too small, too large, or not a valid image format.")
+
+    extension = image_info['format']
+    if extension == 'jpeg':
+        extension = 'jpg'
+
+    filename = generate_filename(url, None, extension)
+    filepath = IMAGES_DIR / filename
+    with open(filepath, 'wb') as f:
+        f.write(image_data)
+
+    return filename, image_info
+
+
+def show_add_view():
+    """Show the add-new-meteorite page."""
+    if st.button("Back to list"):
+        st.session_state.view = 'browse'
+        st.rerun()
+
+    st.subheader("Add New Meteorite")
+
+    with st.form("add_form"):
+        submitted = st.form_submit_button("Save Meteorite")
+
+        st.markdown("#### Image URL")
+        image_url = st.text_input("Image URL", placeholder="https://example.com/meteorite.jpg")
+
+        st.markdown("#### Image Context")
+        in_situ = st.checkbox("In Situ", key="add_in_situ")
+        sectioned = st.checkbox("Sectioned", key="add_sectioned")
+        needs_review = st.checkbox("Needs review", value=False)
+        parent_url = st.text_input("Parent URL")
+        photo_quality_options = ["", "High", "Medium", "Low"]
+        photo_quality = st.selectbox("Photo quality", photo_quality_options)
+        image_context = st.text_input("Image context")
+        viewing_angle = st.text_input("Viewing angle")
+        background_type = st.text_input("Background type")
+        lighting_type = st.text_input("Lighting type")
+        notes = st.text_area("Notes")
+
+        st.markdown("#### Classification")
+        meteorite_name = st.text_input("Name")
+        primary_type = st.text_input("Primary type")
+        secondary_type = st.text_input("Secondary type")
+        detailed_classification = st.text_input("Detailed classification")
+        weathering_grade = st.text_input("Weathering grade")
+
+        st.markdown("#### Physical Characteristics")
+        mass_grams = st.text_input("Mass (grams)")
+        fusion_crust_present = st.checkbox("Fusion crust present")
+        regmaglypts_present = st.checkbox("Regmaglypts present")
+        visible_metal = st.checkbox("Visible metal")
+
+        st.markdown("#### Discovery Info")
+        fall_or_find = st.selectbox("Fall or find", ["", "fall", "find"])
+        discovery_location = st.text_input("Discovery location")
+        discovery_latitude = st.text_input("Latitude")
+        discovery_longitude = st.text_input("Longitude")
+        terrain_type = st.text_input("Terrain type")
+
+        if submitted:
+            if not image_url:
+                st.error("Please enter an image URL.")
+            elif db.url_exists(image_url):
+                st.error("This image URL is already in the database.")
+            else:
+                def to_decimal(val):
+                    if not val or val.strip() == '':
+                        return None
+                    try:
+                        return float(val)
+                    except ValueError:
+                        return None
+
+                try:
+                    with st.spinner("Downloading image..."):
+                        filename, image_info = _fetch_and_store_image(image_url)
+
+                    # Update filename with meteorite name if provided
+                    if meteorite_name:
+                        new_filename = generate_filename(image_url, meteorite_name, image_info['format'] if image_info['format'] != 'jpeg' else 'jpg')
+                        new_path = IMAGES_DIR / new_filename
+                        old_path = IMAGES_DIR / filename
+                        if old_path.exists() and not new_path.exists():
+                            old_path.rename(new_path)
+                            filename = new_filename
+
+                    db_data = {
+                        'meteorite_name': meteorite_name or None,
+                        'original_filename': image_url.split('/')[-1],
+                        'stored_filename': filename,
+                        'source_url': image_url,
+                        'page_url': None,
+                        'photo_page_url': None,
+                        'file_format': image_info['format'] if image_info['format'] != 'jpeg' else 'jpg',
+                        'file_size_bytes': image_info['size_bytes'],
+                        'width_px': image_info['width'],
+                        'height_px': image_info['height'],
+                        'primary_type': primary_type or None,
+                        'secondary_type': secondary_type or None,
+                        'detailed_classification': detailed_classification or None,
+                        'mass_grams': to_decimal(mass_grams),
+                        'fall_or_find': fall_or_find or None,
+                        'discovery_date': None,
+                        'discovery_location': discovery_location or None,
+                        'discovery_latitude': to_decimal(discovery_latitude),
+                        'discovery_longitude': to_decimal(discovery_longitude),
+                        'terrain_type': terrain_type or None,
+                        'image_context': image_context or None,
+                        'viewing_angle': viewing_angle or None,
+                        'background_type': background_type or None,
+                        'lighting_type': lighting_type or None,
+                        'license': None,
+                        'photographer': None,
+                        'needs_review': needs_review,
+                        'notes': notes or None,
+                    }
+
+                    image_id = db.insert_meteorite(db_data)
+
+                    # Save metadata JSON sidecar
+                    save_metadata_json(image_id, {
+                        'meteorite_name': meteorite_name,
+                        'source_url': image_url,
+                    }, filename)
+
+                    # Update with extra fields not in insert_meteorite
+                    extra_fields = {
+                        'in_situ': in_situ,
+                        'sectioned': sectioned,
+                        'fusion_crust_present': fusion_crust_present,
+                        'regmaglypts_present': regmaglypts_present,
+                        'visible_metal': visible_metal,
+                        'parent_url': parent_url or None,
+                    }
+                    if photo_quality:
+                        extra_fields['photo_quality'] = photo_quality
+                    if weathering_grade:
+                        extra_fields['weathering_grade'] = weathering_grade
+                    db.update_meteorite(image_id, extra_fields)
+
+                    st.success(f"Meteorite added with ID {image_id}!")
+                    st.session_state.selected_id = image_id
+                    st.session_state.view = 'detail'
+                    st.rerun()
+
+                except requests.RequestException as e:
+                    st.error(f"Failed to download image: {e}")
+                except ValueError as e:
+                    st.error(str(e))
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+
 # --- Main routing ---
-if st.session_state.selected_id is not None:
+if st.session_state.view == 'add_new':
+    show_add_view()
+elif st.session_state.selected_id is not None:
+    st.session_state.view = 'detail'
     show_detail_view(st.session_state.selected_id)
 else:
+    st.session_state.view = 'browse'
     show_browse_view()

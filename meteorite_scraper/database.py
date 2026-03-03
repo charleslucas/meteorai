@@ -43,7 +43,7 @@ class DatabaseManager:
                     discovery_date, discovery_location, discovery_latitude,
                     discovery_longitude, terrain_type, image_context,
                     viewing_angle, background_type, lighting_type,
-                    license, photographer, data_confidence, needs_review, notes
+                    license, photographer, needs_review, notes
                 ) VALUES (
                     %(meteorite_name)s, %(original_filename)s, %(stored_filename)s,
                     %(source_url)s, %(page_url)s, %(photo_page_url)s, %(file_format)s, %(file_size_bytes)s,
@@ -52,7 +52,7 @@ class DatabaseManager:
                     %(discovery_date)s, %(discovery_location)s, %(discovery_latitude)s,
                     %(discovery_longitude)s, %(terrain_type)s, %(image_context)s,
                     %(viewing_angle)s, %(background_type)s, %(lighting_type)s,
-                    %(license)s, %(photographer)s, %(data_confidence)s, %(needs_review)s, %(notes)s
+                    %(license)s, %(photographer)s, %(needs_review)s, %(notes)s
                 )
                 RETURNING image_id
             """
@@ -176,9 +176,9 @@ class DatabaseManager:
                 if filters.get('meteorite_name'):
                     where_clauses.append("meteorite_name ILIKE %s")
                     params.append(f"%{filters['meteorite_name']}%")
-                if filters.get('photo_type'):
-                    where_clauses.append("photo_type = %s")
-                    params.append(filters['photo_type'])
+                if filters.get('in_situ'):
+                    where_clauses.append("in_situ = %s")
+                    params.append(True)
                 if filters.get('primary_type'):
                     where_clauses.append("primary_type = %s")
                     params.append(filters['primary_type'])
@@ -216,9 +216,9 @@ class DatabaseManager:
                 if filters.get('meteorite_name'):
                     where_clauses.append("meteorite_name ILIKE %s")
                     params.append(f"%{filters['meteorite_name']}%")
-                if filters.get('photo_type'):
-                    where_clauses.append("photo_type = %s")
-                    params.append(filters['photo_type'])
+                if filters.get('in_situ'):
+                    where_clauses.append("in_situ = %s")
+                    params.append(True)
                 if filters.get('primary_type'):
                     where_clauses.append("primary_type = %s")
                     params.append(filters['primary_type'])
@@ -239,7 +239,7 @@ class DatabaseManager:
     def get_distinct_values(self, column):
         """Get distinct non-null values for a column (for filter dropdowns)"""
         allowed_columns = {'primary_type', 'secondary_type', 'image_context',
-                           'fall_or_find', 'data_confidence', 'terrain_type',
+                           'fall_or_find', 'terrain_type',
                            'photo_type'}
         if column not in allowed_columns:
             raise ValueError(f"Column '{column}' not allowed for distinct query")

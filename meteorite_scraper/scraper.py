@@ -156,7 +156,6 @@ class MeteoriteImageScraper:
                 'lighting_type': metadata.get('lighting_type'),
                 'license': metadata.get('license'),
                 'photographer': metadata.get('photographer'),
-                'data_confidence': metadata.get('data_confidence', 'medium'),
                 'needs_review': metadata.get('needs_review', True),
                 'notes': metadata.get('notes', '')
             }
