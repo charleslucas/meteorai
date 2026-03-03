@@ -176,9 +176,9 @@ class DatabaseManager:
                 if filters.get('meteorite_name'):
                     where_clauses.append("meteorite_name ILIKE %s")
                     params.append(f"%{filters['meteorite_name']}%")
-                if filters.get('photo_type'):
-                    where_clauses.append("photo_type = %s")
-                    params.append(filters['photo_type'])
+                if filters.get('in_situ'):
+                    where_clauses.append("in_situ = %s")
+                    params.append(True)
                 if filters.get('primary_type'):
                     where_clauses.append("primary_type = %s")
                     params.append(filters['primary_type'])
@@ -216,9 +216,9 @@ class DatabaseManager:
                 if filters.get('meteorite_name'):
                     where_clauses.append("meteorite_name ILIKE %s")
                     params.append(f"%{filters['meteorite_name']}%")
-                if filters.get('photo_type'):
-                    where_clauses.append("photo_type = %s")
-                    params.append(filters['photo_type'])
+                if filters.get('in_situ'):
+                    where_clauses.append("in_situ = %s")
+                    params.append(True)
                 if filters.get('primary_type'):
                     where_clauses.append("primary_type = %s")
                     params.append(filters['primary_type'])
