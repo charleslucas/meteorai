@@ -462,7 +462,11 @@ def show_add_view():
         notes = st.text_area("Notes")
 
         st.markdown("#### Classification")
-        meteorite_name = st.text_input("Name")
+        existing_names = db.get_distinct_values('meteorite_name')
+        name_options = [""] + existing_names
+        selected_name = st.selectbox("Name (select existing)", name_options, index=0)
+        new_name = st.text_input("Or enter new name")
+        meteorite_name = new_name if new_name else selected_name
         primary_type = st.text_input("Primary type")
         secondary_type = st.text_input("Secondary type")
         detailed_classification = st.text_input("Detailed classification")
@@ -476,7 +480,11 @@ def show_add_view():
 
         st.markdown("#### Discovery Info")
         fall_or_find = st.selectbox("Fall or find", ["", "fall", "find"])
-        discovery_location = st.text_input("Discovery location")
+        existing_locations = db.get_distinct_values('discovery_location')
+        location_options = [""] + existing_locations
+        selected_location = st.selectbox("Discovery location (select existing)", location_options, index=0)
+        new_location = st.text_input("Or enter new discovery location")
+        discovery_location = new_location if new_location else selected_location
         discovery_latitude = st.text_input("Latitude")
         discovery_longitude = st.text_input("Longitude")
         terrain_type = st.text_input("Terrain type")

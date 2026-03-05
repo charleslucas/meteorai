@@ -240,7 +240,7 @@ class DatabaseManager:
         """Get distinct non-null values for a column (for filter dropdowns)"""
         allowed_columns = {'primary_type', 'secondary_type', 'image_context',
                            'fall_or_find', 'terrain_type',
-                           'photo_type'}
+                           'photo_type', 'discovery_location', 'meteorite_name'}
         if column not in allowed_columns:
             raise ValueError(f"Column '{column}' not allowed for distinct query")
 
