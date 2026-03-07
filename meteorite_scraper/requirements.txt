@@ -6,3 +6,5 @@ lxml==5.1.0
 python-dotenv==1.0.0
 tqdm==4.66.1
 streamlit
+label-studio
+label-studio-sdk

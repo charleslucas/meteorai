@@ -4,23 +4,7 @@ A Python-based web scraper for collecting meteorite images from scientific datab
 
 ## Setup
 
-1. Install PostgreSQL and create the database (see setup instructions)
-
-2. Install Python dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-3. Create a `.env` file with your database credentials:
-```
-DB_HOST=localhost
-DB_NAME=meteorite_images
-DB_USER=meteorite_user
-DB_PASSWORD=YourPassword
-DB_PORT=5432
-```
-
-4. Run the schema to create tables (if not already done)
+See [SETUP.md](SETUP.md) for full installation and configuration instructions (PostgreSQL, Python dependencies, environment file, and service startup).
 
 ## Usage
 
@@ -57,24 +41,32 @@ Opens a local web UI where you can:
 - Browse meteorites in a paginated table
 - Filter by name, primary type, image context, or needs-review status
 - View meteorite images and edit all metadata fields
+- Add new meteorites by URL with image download
 - Delete a meteorite (removes the database record, image file, and JSON sidecar)
 
 ## Project Structure
 ```
-meteorite_scraper/
-├── config.py              # Configuration settings
-├── database.py            # Database operations
-├── scraper.py             # Main scraper logic
-├── utils.py               # Helper functions
-├── main.py                # Entry point
-├── app.py                 # Streamlit browser/editor UI
-├── sources/               # Source-specific scrapers
-│   ├── meteoritical_bulletin.py
-│   ├── nasa_curator.py
-│   └── museum_scraper.py
-├── images/                # Downloaded images
-├── metadata/              # JSON metadata files
-└── logs/                  # Log files
+meteorai/
+├── start_services.ps1         # Start all services (PostgreSQL, Streamlit, Label Studio)
+├── stop_services.ps1          # Stop all services
+├── label_studio/              # Label Studio annotation integration
+│   ├── setup_project.py       # Create LS project and import images
+│   ├── export_annotations.py  # Export annotations to YOLO/COCO format
+│   └── exports/               # Exported annotation files
+├── database/
+│   └── migrations/            # SQL migration scripts
+└── meteorite_scraper/
+    ├── config.py              # Configuration settings
+    ├── database.py            # Database operations
+    ├── scraper.py             # Main scraper logic
+    ├── utils.py               # Helper functions
+    ├── main.py                # Entry point
+    ├── app.py                 # Streamlit browser/editor UI
+    ├── sources/               # Source-specific scrapers
+    │   └── meteoritical_bulletin.py
+    ├── images/                # Downloaded images
+    ├── metadata/              # JSON metadata files
+    └── logs/                  # Log files
 ```
 
 ## Adding New Sources
