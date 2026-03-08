@@ -96,26 +96,140 @@ Note: The `LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED` and `LABEL_STUDIO_LOCAL_FIL
 ## 5. Label Studio First-Time Setup
 
 1. Open http://localhost:8080 and create a local account.
-2. Go to Account & Settings and copy your API key.
-3. Run the project setup script to import all meteorite images:
+2. Go to **Account & Settings** and copy your API key.
+3. Run the project setup script to create the annotation project and import all meteorite images as tasks:
 ```bash
 python label_studio/setup_project.py --api-key YOUR_API_KEY
 ```
-4. Open the "Meteorite Annotation" project in Label Studio and begin annotating.
+4. Open the **Meteorite Annotation** project in Label Studio and begin annotating.
+   - Use **RectangleLabels** to draw bounding boxes around objects.
+   - Use **PolygonLabels** for precise segmentation outlines.
 
-## 6. Exporting Annotations
+**Available labels:** `meteorite`, `fusion_crust`, `regmaglypts`, `metal_flake`, `scale_reference`
 
-After annotating images in Label Studio, export to YOLO and/or COCO format:
+## 6. SAM ML Backend (Auto-Annotation)
+
+The SAM (Segment Anything Model) backend lets Label Studio automatically suggest annotations, dramatically speeding up the labeling process.
+
+### First-time installation
+
+#### Windows prerequisite: Visual Studio Build Tools
+
+SAM 2 compiles native C++ extensions during installation and requires the MSVC compiler on Windows. Install **Visual Studio Build Tools 2022** (free, no full IDE needed) before proceeding:
+
+1. Download from https://visualstudio.microsoft.com/downloads/ → "Tools for Visual Studio" → **Build Tools for Visual Studio 2022**
+2. During setup, select the **"Desktop development with C++"** workload (~4 GB)
+
+If you already have Visual Studio 2022 (any edition) installed, you already have what you need.
+
+#### Install SAM 2 and dependencies
+
+SAM 2 is not available on PyPI and must be installed directly from Meta's GitHub repository.
+
+**No GPU (CPU-only):**
 ```bash
-python label_studio/export_annotations.py --project-id 1 --api-key YOUR_API_KEY --format both
+pip install git+https://github.com/facebookresearch/sam2.git
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+pip install label-studio-ml opencv-python-headless scikit-image
 ```
 
-Exports are saved to `label_studio/exports/yolo/` and `label_studio/exports/coco/`.
+**GPU with CUDA 12.x (e.g. RTX 30/40 series):**
+```bash
+pip install git+https://github.com/facebookresearch/sam2.git
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+pip install label-studio-ml opencv-python-headless scikit-image
+```
+
+**GPU with CUDA 12.8+ (e.g. RTX 50 series / Blackwell):**
+
+RTX 50-series GPUs require CUDA 12.8 or later. PyTorch cu13x wheels do not yet exist, so use the cu128 nightly build:
+```bash
+# 1. Install CUDA Toolkit 12.8 from https://developer.nvidia.com/cuda-downloads
+#    Select only "CUDA Toolkit" and "CUDA Development Tools".
+#    Uncheck PhysX, GeForce Experience, and other optional components — not needed.
+# 2. Install PyTorch nightly cu128
+pip install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128
+# 3. Install SAM 2 and remaining dependencies
+pip install git+https://github.com/facebookresearch/sam2.git
+pip install label-studio-ml opencv-python-headless scikit-image
+```
+
+Then download the model weights (~46 MB for the default "small" model):
+```bash
+python label_studio/download_sam_weights.py
+```
+
+Other model sizes are available if speed or accuracy needs differ:
+```bash
+python label_studio/download_sam_weights.py --model tiny   # fastest, ~39 MB
+python label_studio/download_sam_weights.py --model large  # most accurate, ~224 MB
+```
+
+CPU inference is supported but slow (~10–30 seconds per image in automatic mode). A GPU with ≥2 GB VRAM is recommended for interactive use.
+
+### Starting the SAM backend
+
+The SAM backend starts automatically with the main service scripts once weights are downloaded:
+```powershell
+.\start_services.ps1
+```
+
+Or start it standalone (double-click or run from a terminal):
+```cmd
+python label_studio\sam_backend.py --port 9090
+```
+
+Keep the terminal window open — closing it stops the backend.
+
+### Connecting to Label Studio
+
+1. Open Label Studio and go to **Settings → Model → Connect Model**.
+2. Enter URL: `http://localhost:9090`
+3. Enable **"Interactive preannotations"** — this activates both automatic pre-labeling when you open an image and the interactive Smart tool. Without it, the backend is connected but won't generate any annotations.
+4. Click **Validate and Save**.
+
+### Annotation modes
+
+**Automatic (batch):** When you open an unannotated image, a polygon and bounding box are pre-filled automatically. SAM selects the most prominent subject as the `meteorite` prediction. Review and correct as needed.
+
+**Interactive (Smart tool):** Enable the magic-wand icon in the Label Studio toolbar. Click on any object in the image and SAM generates a precise polygon around it. You can:
+- Click individual points to refine the selection
+- Draw a rough bounding box and let SAM segment the contents
+
+## 7. Exporting Annotations
+
+After annotating images in Label Studio, export to YOLO and/or COCO format for model training:
+```bash
+python label_studio/export_annotations.py \
+    --project-id 1 \
+    --username your@email.com \
+    --password yourpwd \
+    --format both
+```
+
+Exports are saved to:
+- `label_studio/exports/yolo/` — YOLO `.txt` files + `classes.txt`
+- `label_studio/exports/coco/` — `annotations.json` in COCO format
+
+## 8. Backup and Restore
+
+Create a portable ZIP backup of the database, images, and annotations:
+```bash
+python export_backup.py --ls-project-id 1 --ls-username you@email.com --ls-password yourpwd
+```
+
+Restore or merge into another machine:
+```bash
+python import_backup.py meteorai_backup_TIMESTAMP.zip --ls-username you@email.com --ls-password yourpwd
+```
+
+See [README_EXPORT.md](../README_EXPORT.md) for full documentation.
 
 ## Service URLs
 
-| Service       | URL                    | Port |
-|---------------|------------------------|------|
-| Streamlit     | http://localhost:8501  | 8501 |
-| Label Studio  | http://localhost:8080  | 8080 |
-| PostgreSQL    | localhost              | 5432 |
+| Service        | URL                     | Port |
+|----------------|-------------------------|------|
+| Streamlit      | http://localhost:8501   | 8501 |
+| Label Studio   | http://localhost:8080   | 8080 |
+| SAM ML backend | http://localhost:9090   | 9090 |
+| PostgreSQL     | localhost               | 5432 |
