@@ -68,9 +68,7 @@ if (Test-Port 8080) {
     Write-Host "  Label Studio is already running on port 8080." -ForegroundColor Green
 } else {
     Write-Host "  Starting Label Studio..."
-    $env:LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED = "true"
-    $env:LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT = "$PROJECT_DIR\meteorite_scraper"
-    Start-Process label-studio -ArgumentList "start", "--port", "8080" -WindowStyle Minimized
+    Start-Process cmd -ArgumentList "/c `"$PROJECT_DIR\start_label_studio.bat`"" -WindowStyle Minimized
     Write-Host "  Label Studio starting at http://localhost:8080" -ForegroundColor Green
 }
 
