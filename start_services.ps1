@@ -1,5 +1,5 @@
 # MeteorAI Startup Script
-# Starts PostgreSQL, Streamlit, and Label Studio
+# Starts PostgreSQL, Streamlit, Label Studio, and the SAM ML backend
 # Detects if each service is already running and skips it if so.
 # Run from PowerShell: .\start_services.ps1
 
@@ -63,13 +63,31 @@ if (Test-Port 8501) {
 
 # 3. Start Label Studio (if not already running on port 8080)
 #    Runs as current user so Python environment is correct.
-Write-Host "`n[3/3] Checking Label Studio..." -ForegroundColor Yellow
+Write-Host "`n[3/4] Checking Label Studio..." -ForegroundColor Yellow
 if (Test-Port 8080) {
     Write-Host "  Label Studio is already running on port 8080." -ForegroundColor Green
 } else {
     Write-Host "  Starting Label Studio..."
     Start-Process cmd -ArgumentList "/c `"$PROJECT_DIR\start_label_studio.bat`"" -WindowStyle Minimized
     Write-Host "  Label Studio starting at http://localhost:8080" -ForegroundColor Green
+}
+
+# 4. Start SAM ML backend (if not already running on port 9090)
+#    Requires: pip install -r label_studio/requirements_sam.txt
+#              python label_studio/download_sam_weights.py
+Write-Host "`n[4/4] Checking SAM ML backend..." -ForegroundColor Yellow
+if (Test-Port 9090) {
+    Write-Host "  SAM backend is already running on port 9090." -ForegroundColor Green
+} else {
+    $samWeights = Get-ChildItem "$PROJECT_DIR\label_studio\sam_weights" -Filter "*.pt" -ErrorAction SilentlyContinue
+    if ($samWeights) {
+        Write-Host "  Starting SAM ML backend..."
+        Start-Process cmd -ArgumentList "/c `"$PROJECT_DIR\label_studio\start_sam_backend.bat`"" -WindowStyle Minimized
+        Write-Host "  SAM backend starting at http://localhost:9090" -ForegroundColor Green
+    } else {
+        Write-Host "  SAM weights not found — skipping." -ForegroundColor Gray
+        Write-Host "  To enable: python label_studio/download_sam_weights.py" -ForegroundColor Gray
+    }
 }
 
 # Wait for Streamlit to be ready, then open its browser tab
@@ -85,6 +103,7 @@ Start-Process "http://localhost:8080"
 Write-Host "`n=== All services started ===" -ForegroundColor Cyan
 Write-Host "  Streamlit:     http://localhost:8501"
 Write-Host "  Label Studio:  http://localhost:8080"
+Write-Host "  SAM backend:   http://localhost:9090"
 Write-Host "  PostgreSQL:    localhost:5432"
 Write-Host "`nServices are running in the background."
 Write-Host "To stop all services, run: .\stop_services.ps1" -ForegroundColor Yellow

@@ -1,0 +1,31 @@
+# SAM ML Backend dependencies
+# Install with: pip install -r label_studio/requirements_sam.txt
+#
+# Then download model weights:
+#   python label_studio/download_sam_weights.py
+#
+# GPU strongly recommended but not required. CPU inference works but is slow
+# (~10-30 seconds per image for automatic mode).
+
+# Label Studio ML backend framework
+label-studio-ml>=1.0.9
+
+# PyTorch — install the CPU-only build if no GPU is available:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+# For GPU (CUDA 12.x):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+torch>=2.1.0
+torchvision>=0.16.0
+
+# SAM 2 — install from Meta's GitHub (not on PyPI under this name):
+#   pip install git+https://github.com/facebookresearch/sam2.git
+# This line is a placeholder; install the above manually before using this file.
+# segment-anything-2  # placeholder — use the git install above
+
+# Image processing
+opencv-python-headless>=4.8.0
+scikit-image>=0.21.0
+
+# Already in meteorite_scraper/requirements.txt but listed for completeness:
+# Pillow
+# requests
