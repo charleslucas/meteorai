@@ -3,9 +3,11 @@
 Export Label Studio annotations to YOLO and COCO formats.
 
 Usage:
-    python label_studio/export_annotations.py --project-id 2 --username your@email.com --password yourpassword
-    python label_studio/export_annotations.py --project-id 2 --username your@email.com --password yourpassword --format yolo
-    python label_studio/export_annotations.py --project-id 2 --username your@email.com --password yourpassword --format coco
+    python label_studio/export_annotations.py --project-id 1 --api-key YOUR_API_KEY
+    python label_studio/export_annotations.py --project-id 1 --api-key YOUR_API_KEY --format yolo
+    python label_studio/export_annotations.py --project-id 1 --api-key YOUR_API_KEY --format coco
+
+Get your API key from Label Studio: Account & Settings → Access Token
 """
 import argparse
 import json
@@ -38,58 +40,49 @@ LABEL_MAP = {
 }
 
 
-def get_session(base_url, username, password):
-    """Log in and return an authenticated requests session."""
+def get_session(base_url, api_key):
+    """Return a requests session authenticated with an API token."""
     session = requests.Session()
-
-    # Get CSRF token
-    r = session.get(f"{base_url}/user/login")
-    r.raise_for_status()
-    csrf = session.cookies.get("csrftoken", "")
-
-    # Log in
-    r = session.post(f"{base_url}/user/login", data={
-        "email": username,
-        "password": password,
-        "csrfmiddlewaretoken": csrf,
-    }, headers={"Referer": f"{base_url}/user/login"})
-    r.raise_for_status()
-
-    # Update CSRF and set headers for API calls
-    csrf = session.cookies.get("csrftoken", csrf)
+    # JWT tokens (start with "eyJ") use Bearer; legacy tokens use Token
+    prefix = "Bearer" if api_key.startswith("eyJ") else "Token"
     session.headers.update({
+        "Authorization": f"{prefix} {api_key}",
         "Content-Type": "application/json",
-        "X-CSRFToken": csrf,
     })
-
-    # Verify login
     r = session.get(f"{base_url}/api/projects")
     if r.status_code in (401, 403):
-        raise Exception(f"Login failed. Check your username and password.")
+        raise Exception(
+            f"Authentication failed (HTTP {r.status_code}). Check your API key.\n"
+            f"  Response: {r.text[:300]}"
+        )
     r.raise_for_status()
-    print(f"Logged in successfully as {username}.")
+    print("Authenticated successfully.")
     return session
 
 
-def get_tasks(session, base_url, project_id):
-    """Fetch all annotated tasks for a project."""
-    tasks = []
-    page = 1
-    while True:
-        r = session.get(
-            f"{base_url}/api/tasks",
-            params={"project": project_id, "page": page, "page_size": 100, "only_with_annotations": True}
-        )
-        r.raise_for_status()
-        data = r.json()
-        results = data.get("tasks", data) if isinstance(data, dict) else data
-        if not results:
-            break
-        tasks.extend(results)
-        if isinstance(data, dict) and not data.get("next"):
-            break
-        page += 1
-    return tasks
+def get_tasks(base_url, api_key, project_id):
+    """Fetch all annotated tasks using the Label Studio SDK."""
+    from label_studio_sdk import Client
+    ls = Client(url=base_url, api_key=api_key)
+
+    # List available projects so the user can confirm the right ID
+    try:
+        projects = ls.list_projects()
+        print("  Available projects:")
+        for p in projects:
+            pid = p.id if hasattr(p, "id") else p.get("id", "?")
+            ptitle = p.title if hasattr(p, "title") else p.get("title", "?")
+            marker = " <-- will export this one" if pid == project_id else ""
+            print(f"    ID {pid}: {ptitle}{marker}")
+    except Exception:
+        pass  # listing is informational only
+
+    project = ls.get_project(project_id)
+    title = getattr(project, "title", None) or project.params.get("title", f"#{project_id}")
+    print(f"  Exporting project: {title}")
+
+    tasks = project.get_labeled_tasks()
+    return [t for t in tasks if t.get("annotations")]
 
 
 def get_filename_from_task(task):
@@ -248,22 +241,26 @@ def main():
         description="Export Label Studio annotations to YOLO and COCO formats"
     )
     parser.add_argument("--project-id", type=int, required=True, help="Label Studio project ID")
-    parser.add_argument("--username", help="Label Studio login email")
-    parser.add_argument("--password", help="Label Studio login password")
+    parser.add_argument(
+        "--api-key",
+        default=os.getenv("LABEL_STUDIO_API_KEY"),
+        help="Label Studio API token (Account & Settings → Access Token, or set LABEL_STUDIO_API_KEY env var)",
+    )
     parser.add_argument(
         "--format", choices=["yolo", "coco", "both"], default="both",
         help="Export format (default: both)",
     )
     args = parser.parse_args()
 
-    if not (args.username and args.password):
-        print("ERROR: Provide --username and --password.")
+    if not args.api_key:
+        print("ERROR: Provide --api-key or set the LABEL_STUDIO_API_KEY environment variable.")
+        print("       Get your key from Label Studio: Account & Settings → Access Token")
         sys.exit(1)
 
     print(f"Connecting to Label Studio at {LABEL_STUDIO_URL}...")
-    session = get_session(LABEL_STUDIO_URL, args.username, args.password)
+    get_session(LABEL_STUDIO_URL, args.api_key)  # verify connectivity/auth
 
-    tasks = get_tasks(session, LABEL_STUDIO_URL, args.project_id)
+    tasks = get_tasks(LABEL_STUDIO_URL, args.api_key, args.project_id)
     if not tasks:
         print("No annotated tasks found. Annotate some images first.")
         return
