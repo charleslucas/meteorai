@@ -35,8 +35,9 @@ import requests
 # ---------------------------------------------------------------------------
 PROJECT_DIR = Path(__file__).resolve().parent
 SCRAPER_DIR = PROJECT_DIR / "meteorite_scraper"
-IMAGES_DIR = SCRAPER_DIR / "images"
-ENV_FILE = SCRAPER_DIR / ".env"
+IMAGES_DIR  = SCRAPER_DIR / "images"
+VIDEOS_DIR  = SCRAPER_DIR / "videos"
+ENV_FILE    = SCRAPER_DIR / ".env"
 
 sys.path.insert(0, str(SCRAPER_DIR))
 
@@ -192,6 +193,8 @@ def main():
     parser.add_argument("--ls-password", help="Label Studio login password")
     parser.add_argument("--skip-label-studio", action="store_true",
                         help="Skip Label Studio annotation export")
+    parser.add_argument("--skip-videos", action="store_true",
+                        help="Skip downloaded YouTube videos (they can be large)")
     args = parser.parse_args()
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -245,10 +248,20 @@ def main():
             except Exception as e:
                 print(f"  WARNING: Label Studio export failed: {e}")
 
-        # 4. Build ZIP
+        # 4. Collect file lists
         image_files = sorted(IMAGES_DIR.iterdir()) if IMAGES_DIR.exists() else []
         image_files = [f for f in image_files if f.is_file()]
-        print(f"[4/4] Building ZIP archive ({len(image_files)} images)...")
+
+        video_files = []
+        if not args.skip_videos and VIDEOS_DIR.exists():
+            video_files = sorted(VIDEOS_DIR.iterdir())
+            video_files = [f for f in video_files if f.is_file()]
+
+        step_label = "[4/4]" if args.skip_videos else "[4/5]"
+        print(f"{step_label} Building ZIP archive "
+              f"({len(image_files)} images"
+              + (f", {len(video_files)} videos" if not args.skip_videos else "")
+              + ")...")
 
         manifest = {
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -258,8 +271,9 @@ def main():
                 "name": env.get("DB_NAME", "meteorite_images"),
                 "user": env.get("DB_USER", "meteorite_user"),
             },
-            "record_count": record_count,
-            "image_count": len(image_files),
+            "record_count":      record_count,
+            "image_count":       len(image_files),
+            "video_count":       len(video_files),
             "label_studio_tasks": ls_task_count,
         }
         (tmp_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
@@ -278,6 +292,10 @@ def main():
                 zf.write(ls_json, "label_studio_annotations.json")
             for img in image_files:
                 zf.write(img, f"images/{img.name}")
+            if video_files:
+                print(f"[5/5] Adding {len(video_files)} video(s)...")
+                for vid in video_files:
+                    zf.write(vid, f"videos/{vid.name}")
 
         size_mb = output_path.stat().st_size / (1024 * 1024)
         print(f"\n=== Export Complete ===")
@@ -285,8 +303,12 @@ def main():
         print(f"  Size:     {size_mb:.1f} MB")
         print(f"  Records:  {record_count}")
         print(f"  Images:   {len(image_files)}")
+        if video_files:
+            print(f"  Videos:   {len(video_files)}")
         if ls_task_count:
             print(f"  LS tasks: {ls_task_count}")
+        if not args.skip_videos and not video_files:
+            print(f"  Videos:   0  (use --skip-videos to suppress this step)")
         print(f"\nTo restore: python import_backup.py {output_path.name}")
 
 

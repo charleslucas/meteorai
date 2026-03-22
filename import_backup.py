@@ -38,8 +38,9 @@ import requests
 # ---------------------------------------------------------------------------
 PROJECT_DIR = Path(__file__).resolve().parent
 SCRAPER_DIR = PROJECT_DIR / "meteorite_scraper"
-IMAGES_DIR = SCRAPER_DIR / "images"
-ENV_FILE = SCRAPER_DIR / ".env"
+IMAGES_DIR  = SCRAPER_DIR / "images"
+VIDEOS_DIR  = SCRAPER_DIR / "videos"
+ENV_FILE    = SCRAPER_DIR / ".env"
 
 # Columns to insert (excludes image_id and created_at — let the DB assign these)
 METEORITE_COLUMNS = [
@@ -389,9 +390,13 @@ def main():
     parser.add_argument("--ls-password", help="Label Studio login password")
     parser.add_argument("--skip-label-studio", action="store_true")
 
-    # Images
+    # Images / Videos
     parser.add_argument("--images-dir", default=None,
                         help="Override target images directory")
+    parser.add_argument("--videos-dir", default=None,
+                        help="Override target videos directory")
+    parser.add_argument("--skip-videos", action="store_true",
+                        help="Skip restoring downloaded YouTube videos")
     args = parser.parse_args()
 
     backup_path = Path(args.backup)
@@ -400,6 +405,7 @@ def main():
         sys.exit(1)
 
     target_images = Path(args.images_dir) if args.images_dir else IMAGES_DIR
+    target_videos = Path(args.videos_dir) if args.videos_dir else VIDEOS_DIR
 
     print("=== MeteorAI Backup Import ===")
     print(f"Backup: {backup_path}")
@@ -413,6 +419,8 @@ def main():
             print(f"Backup created: {manifest.get('created_at', 'unknown')}")
             print(f"Records in backup: {manifest.get('record_count', '?')}")
             print(f"Images in backup:  {manifest.get('image_count', '?')}")
+            if manifest.get('video_count'):
+                print(f"Videos in backup:  {manifest['video_count']}")
             if manifest.get('label_studio_tasks'):
                 print(f"LS tasks in backup: {manifest['label_studio_tasks']}")
             print()
@@ -486,7 +494,7 @@ def main():
             print(f"  Written: {ENV_FILE}")
 
             # --- 2. Images ---
-            print(f"\n[2/3] Copying images to {target_images}...")
+            print(f"\n[2/4] Copying images to {target_images}...")
             target_images.mkdir(parents=True, exist_ok=True)
             image_names = [n for n in names if n.startswith("images/") and not n.endswith("/")]
             copied = skipped_imgs = 0
@@ -499,16 +507,36 @@ def main():
                 copied += 1
             print(f"  Images: {copied} copied, {skipped_imgs} skipped (already exist).")
 
-            # --- 3. Label Studio ---
+            # --- 3. Videos ---
+            video_names = [n for n in names if n.startswith("videos/") and not n.endswith("/")]
+            if args.skip_videos or not video_names:
+                if video_names and args.skip_videos:
+                    print(f"\n[3/4] Skipping {len(video_names)} video(s) (--skip-videos).")
+                else:
+                    print(f"\n[3/4] No videos in this backup.")
+            else:
+                print(f"\n[3/4] Copying {len(video_names)} video(s) to {target_videos}...")
+                target_videos.mkdir(parents=True, exist_ok=True)
+                copied_vids = skipped_vids = 0
+                for name in video_names:
+                    dst = target_videos / Path(name).name
+                    if dst.exists():
+                        skipped_vids += 1
+                        continue
+                    shutil.copy2(tmp_dir / name, dst)
+                    copied_vids += 1
+                print(f"  Videos: {copied_vids} copied, {skipped_vids} skipped (already exist).")
+
+            # --- 4. Label Studio ---
             if args.skip_label_studio:
-                print("\n[3/3] Skipping Label Studio import.")
+                print("\n[4/4] Skipping Label Studio import.")
             elif not ls_json.exists():
-                print("\n[3/3] No Label Studio annotations in this backup.")
+                print("\n[4/4] No Label Studio annotations in this backup.")
             elif not (args.ls_username and args.ls_password):
-                print("\n[3/3] Skipping Label Studio (no credentials provided).")
+                print("\n[4/4] Skipping Label Studio (no credentials provided).")
                 print("       Re-run with --ls-username / --ls-password to import annotations.")
             else:
-                print(f"\n[3/3] Importing Label Studio annotations into {args.ls_url}...")
+                print(f"\n[4/4] Importing Label Studio annotations into {args.ls_url}...")
                 try:
                     session = get_ls_session(args.ls_url, args.ls_username, args.ls_password)
                     import_ls_annotations(args.ls_url, session, ls_json,

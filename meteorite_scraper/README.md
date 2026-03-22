@@ -33,6 +33,25 @@ python main.py --stats
 python main.py --log-level DEBUG
 ```
 
+### Batch scraping with resume support:
+```bash
+# Scrape up to 50 meteorites starting at position 100 in the listing
+python main.py --start-at 100 --max-meteorites 50
+
+# Run headless (not recommended — more likely to be blocked by Cloudflare)
+python main.py --headless
+```
+
+### List all meteorites in the database:
+```bash
+python list_database.py
+```
+
+### Test scrape (2 meteorites only, useful for verifying setup):
+```bash
+python test_scraper.py
+```
+
 ### Browse and edit meteorites (Streamlit app):
 ```bash
 streamlit run app.py
@@ -41,8 +60,35 @@ Opens a local web UI where you can:
 - Browse meteorites in a paginated table
 - Filter by name, primary type, image context, or needs-review status
 - View meteorite images and edit all metadata fields
-- Add new meteorites by URL with image download
+- Add new meteorites by pasting an image URL (downloaded automatically)
+- Add frames from a YouTube video using the built-in frame picker (see below)
 - Delete a meteorite (removes the database record, image file, and JSON sidecar)
+
+### Adding images from YouTube videos:
+
+In the Streamlit app, go to **New Meteorite** and paste a YouTube URL into the Image URL field. The app will:
+
+1. **Download** the video to `meteorite_scraper/videos/` using `yt-dlp`
+2. **Launch** a separate OpenCV frame picker window
+3. Let you **navigate** the video and **capture** frames with the keyboard:
+
+| Key | Action |
+|-----|--------|
+| `Space` | Capture current frame |
+| `P` | Play / Pause |
+| `. / →` | Step forward 1 frame |
+| `, / ←` | Step backward 1 frame |
+| `D` | Jump forward 5 seconds |
+| `A` | Jump backward 5 seconds |
+| `Q / Esc` | Quit and return to browser |
+
+4. **Review** captured frame thumbnails in the browser and uncheck any to discard
+5. **Save** selected frames to the database with all metadata from the form
+
+Requires additional dependencies:
+```bash
+pip install yt-dlp opencv-python
+```
 
 ## Annotation Workflow
 
@@ -68,7 +114,7 @@ meteorai/
 ├── stop_services.ps1               # Stop all services
 ├── start_services.bat              # Double-click launcher for start_services.ps1
 ├── stop_services.bat               # Double-click launcher for stop_services.ps1
-├── export_backup.py                # Export full backup (DB + images + annotations)
+├── export_backup.py                # Export full backup (DB + images + videos + annotations)
 ├── import_backup.py                # Merge backup into another installation
 ├── README_EXPORT.md                # Backup/restore documentation
 ├── label_studio/                   # Label Studio annotation integration
@@ -88,12 +134,17 @@ meteorai/
     ├── database.py                 # Database operations
     ├── scraper.py                  # Main scraper logic
     ├── utils.py                    # Helper functions
-    ├── main.py                     # Entry point
+    ├── main.py                     # CLI entry point for web scraping
     ├── app.py                      # Streamlit browser/editor UI
+    ├── youtube_picker.py           # OpenCV frame picker (launched by app.py)
+    ├── list_database.py            # Print all database records to the console
+    ├── test_scraper.py             # Quick test — scrapes 2 meteorites only
     ├── sources/                    # Source-specific scrapers
     │   └── meteoritical_bulletin.py
-    ├── images/                     # Downloaded images
-    ├── metadata/                   # JSON metadata files
+    ├── images/                     # Downloaded meteorite images
+    ├── videos/                     # Downloaded YouTube videos
+    ├── yt_staging/                 # Temporary staging for captured video frames
+    ├── metadata/                   # JSON metadata sidecars
     └── logs/                       # Log files
 ```
 

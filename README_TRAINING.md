@@ -143,12 +143,38 @@ yolo detect predict model=best.pt source=video.mp4 conf=0.3
 yolo detect predict model=best.pt source=path/to/frames/
 ```
 
-## 6. Adding Drone Video Frames to the Training Set
+## 6. Adding Video Frames to the Training Set
 
-More training data — especially from the actual deployment environment (drone footage)
-— will significantly improve accuracy. To add video frames:
+More training data — especially from the actual deployment environment (drone footage
+or reference YouTube videos) — will significantly improve accuracy.
 
-**Extract frames with ffmpeg:**
+### From YouTube (recommended — built into the Streamlit app)
+
+The Streamlit app has a built-in YouTube frame picker. Open the app, click **New Meteorite**,
+paste a YouTube URL into the Image URL field, and follow the on-screen steps:
+
+1. Download the video (saved to `meteorite_scraper/videos/`)
+2. Navigate the video in the OpenCV frame picker window and press `Space` to capture frames
+3. Review the captured thumbnails in the browser and save selected frames to the database
+
+Requires: `pip install yt-dlp opencv-python`
+
+Frame picker controls:
+
+| Key | Action |
+|-----|--------|
+| `Space` | Capture current frame |
+| `P` | Play / Pause |
+| `. / →` | Step forward 1 frame |
+| `, / ←` | Step backward 1 frame |
+| `D` | Jump forward 5 seconds |
+| `A` | Jump backward 5 seconds |
+| `Q / Esc` | Quit and return to browser |
+
+### From local video files (ffmpeg)
+
+For drone footage or other local video files not on YouTube:
+
 ```bash
 # Extract 1 frame per second
 ffmpeg -i drone_footage.mp4 -vf fps=1 meteorite_scraper/images/drone_%04d.jpg

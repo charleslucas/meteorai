@@ -34,6 +34,26 @@ pip install -r meteorite_scraper/requirements.txt
 
 This installs all required packages including Streamlit, Label Studio, and the Label Studio SDK.
 
+### Optional: YouTube frame picker
+
+To use the YouTube video frame picker in the Streamlit app (download videos and manually select frames as training images), install two additional packages:
+
+```bash
+pip install yt-dlp opencv-python
+```
+
+- `yt-dlp` — downloads videos from YouTube and other sites
+- `opencv-python` — provides the frame picker window with keyboard controls
+
+`ffmpeg` is also recommended for `yt-dlp` to merge the highest-quality video and audio streams:
+```bash
+# Windows: download from https://ffmpeg.org/download.html and add to PATH
+# macOS:
+brew install ffmpeg
+```
+
+Without `ffmpeg`, `yt-dlp` will fall back to a slightly lower-quality pre-merged format but still works.
+
 ## 3. Create Environment File
 
 Create a `.env` file in the `meteorite_scraper/` directory with your database credentials:

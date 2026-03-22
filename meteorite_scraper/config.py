@@ -10,11 +10,13 @@ BASE_DIR = Path(__file__).parent
 IMAGES_DIR = BASE_DIR / "images"
 METADATA_DIR = BASE_DIR / "metadata"
 LOGS_DIR = BASE_DIR / "logs"
+VIDEOS_DIR = BASE_DIR / "videos"
 
 # Create directories if they don't exist
 IMAGES_DIR.mkdir(exist_ok=True)
 METADATA_DIR.mkdir(exist_ok=True)
 LOGS_DIR.mkdir(exist_ok=True)
+VIDEOS_DIR.mkdir(exist_ok=True)
 
 # Database configuration
 DB_CONFIG = {

@@ -45,6 +45,12 @@ python export_backup.py --output backups/my_backup.zip
 python export_backup.py --skip-label-studio
 ```
 
+### Skip videos (omit downloaded YouTube videos to keep the archive smaller)
+
+```bash
+python export_backup.py --skip-videos
+```
+
 ### All options
 
 | Flag | Default | Description |
@@ -55,17 +61,21 @@ python export_backup.py --skip-label-studio
 | `--ls-username EMAIL` | *(none)* | Label Studio login email |
 | `--ls-password PWD` | *(none)* | Label Studio login password |
 | `--skip-label-studio` | false | Omit Label Studio export entirely |
+| `--skip-videos` | false | Omit downloaded YouTube videos (can be large) |
 
 ### ZIP contents
 
 ```
 meteorai_backup_YYYYMMDD_HHMMSS.zip
-├── manifest.json                   # Metadata: date, record/image counts
+├── manifest.json                   # Metadata: date, record/image/video counts
 ├── env_reference.json              # DB connection info (passwords masked)
 ├── schema.sql                      # Database schema (pg_dump --schema-only)
 ├── data.json                       # All meteorite rows as JSON
 ├── images/                         # All meteorite image files
 │   ├── abc123_meteorite.jpg
+│   └── ...
+├── videos/                         # Downloaded YouTube videos (omitted with --skip-videos)
+│   ├── dQw4w9WgXcQ.mp4
 │   └── ...
 └── label_studio_annotations.json   # LS project config + all tasks/annotations
                                     # (only present when --ls-project-id is given)
@@ -107,10 +117,17 @@ python import_backup.py backup.zip --skip-label-studio
 python import_backup.py backup.zip --db-password gingerclover --pg-superuser-password postgres_pw
 ```
 
-### Override image destination
+### Override image or video destination
 
 ```bash
 python import_backup.py backup.zip --images-dir /mnt/data/meteorai/images
+python import_backup.py backup.zip --videos-dir /mnt/data/meteorai/videos
+```
+
+### Skip videos during import
+
+```bash
+python import_backup.py backup.zip --skip-videos
 ```
 
 ### All options
@@ -131,6 +148,8 @@ python import_backup.py backup.zip --images-dir /mnt/data/meteorai/images
 | `--ls-password PWD` | *(none)* | Label Studio login password |
 | `--skip-label-studio` | false | Omit Label Studio import entirely |
 | `--images-dir PATH` | `meteorite_scraper/images/` | Override target images directory |
+| `--videos-dir PATH` | `meteorite_scraper/videos/` | Override target videos directory |
+| `--skip-videos` | false | Omit video restore entirely |
 
 ---
 
@@ -142,8 +161,11 @@ Imports are always safe to run against a database that already has data.
 |-----------|-------------------|-------------------------------|
 | Meteorite DB record | `source_url` (falls back to `stored_filename` for manually-added records) | Skipped |
 | Image file | Filename | Skipped (existing file kept) |
+| Video file | Filename | Skipped (existing file kept) |
 | Label Studio task | `stored_filename` in task data | Skipped |
 | Label Studio task with no DB record | `stored_filename` not in target DB | Skipped (orphan protection) |
+
+For YouTube-sourced frames, `source_url` is stored as `{youtube_url}#t={timestamp}` — each captured frame has a unique, stable identifier that prevents duplicate inserts across imports.
 
 `image_id` values in Label Studio task data are automatically remapped to the target database's IDs after the DB merge, so the link between annotations and database records is always consistent.
 

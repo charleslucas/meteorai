@@ -1,6 +1,11 @@
 import streamlit as st
 import sys
 import os
+import json
+import hashlib
+import re
+import shutil
+import subprocess
 import requests
 import io
 from pathlib import Path
@@ -9,8 +14,23 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from database import DatabaseManager
-from config import IMAGES_DIR, METADATA_DIR, SCRAPE_CONFIG
+from config import IMAGES_DIR, METADATA_DIR, SCRAPE_CONFIG, VIDEOS_DIR
 from utils import generate_filename, validate_image, save_metadata_json
+
+try:
+    import yt_dlp
+    YT_DLP_AVAILABLE = True
+except ImportError:
+    YT_DLP_AVAILABLE = False
+
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+
+# Staging directory for captured frames (sits alongside images/ and videos/)
+YT_STAGING_DIR = Path(__file__).parent / "yt_staging"
 
 db = DatabaseManager()
 
@@ -78,7 +98,361 @@ if 'page' not in st.session_state:
 if 'list_confirm_delete' not in st.session_state:
     st.session_state.list_confirm_delete = None
 
+# YouTube picker state
+for _key in ('yt_url', 'yt_metadata', 'yt_stage', 'yt_video_path',
+             'yt_video_info', 'yt_process', 'yt_captured_frames'):
+    if _key not in st.session_state:
+        st.session_state[_key] = None
+
 PAGE_SIZE = 25
+
+
+# ---------------------------------------------------------------------------
+# YouTube helpers
+# ---------------------------------------------------------------------------
+
+def is_youtube_url(url):
+    """Return True if url looks like a YouTube video link."""
+    if not url:
+        return False
+    return bool(re.match(
+        r'https?://(www\.|m\.)?(youtube\.com/(watch|shorts|embed)|youtu\.be/)',
+        url.strip()
+    ))
+
+
+def _clear_yt_staging():
+    if YT_STAGING_DIR.exists():
+        shutil.rmtree(str(YT_STAGING_DIR), ignore_errors=True)
+
+
+def _reset_yt_state():
+    _clear_yt_staging()
+    st.session_state.yt_url = None
+    st.session_state.yt_metadata = None
+    st.session_state.yt_stage = None
+    st.session_state.yt_video_path = None
+    st.session_state.yt_video_info = None
+    st.session_state.yt_process = None
+    st.session_state.yt_captured_frames = None
+    # Clear per-frame checkboxes
+    for k in [k for k in st.session_state if k.startswith('yt_keep_')]:
+        del st.session_state[k]
+
+
+def _do_download(url):
+    """Download a YouTube video to VIDEOS_DIR and store info in session state."""
+    VIDEOS_DIR.mkdir(exist_ok=True)
+    ydl_opts = {
+        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+        'outtmpl': str(VIDEOS_DIR / '%(id)s.%(ext)s'),
+        'quiet': True,
+        'noplaylist': True,
+    }
+    with st.spinner("Downloading video from YouTube..."):
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+            video_id = info['id']
+            video_path = next(
+                (f for f in VIDEOS_DIR.iterdir() if f.stem == video_id), None
+            )
+            if not video_path:
+                st.error("Download finished but could not locate the video file.")
+                return
+            st.session_state.yt_video_path = str(video_path)
+            st.session_state.yt_video_info = {
+                'id':       info.get('id', ''),
+                'title':    info.get('title', 'Unknown'),
+                'uploader': info.get('uploader', ''),
+                'duration': info.get('duration', 0),
+            }
+            st.session_state.yt_stage = 'downloaded'
+        except Exception as e:
+            st.error(f"Download failed: {e}")
+
+
+def _do_launch_picker():
+    """Launch the OpenCV frame picker as a non-blocking subprocess."""
+    _clear_yt_staging()
+    YT_STAGING_DIR.mkdir(parents=True, exist_ok=True)
+    picker = Path(__file__).parent / "youtube_picker.py"
+    proc = subprocess.Popen(
+        [sys.executable, str(picker),
+         '--video',      st.session_state.yt_video_path,
+         '--output-dir', str(YT_STAGING_DIR)],
+    )
+    st.session_state.yt_process = proc
+    st.session_state.yt_stage = 'picker_running'
+
+
+def _load_captured_frames():
+    """Read manifest.json written by the picker and store results in session state."""
+    manifest_path = YT_STAGING_DIR / "manifest.json"
+    if not manifest_path.exists():
+        st.session_state.yt_captured_frames = []
+        return
+    data = json.loads(manifest_path.read_text())
+    frames = data.get('frames', [])
+    for f in frames:
+        f['path'] = str(YT_STAGING_DIR / f['filename'])
+    st.session_state.yt_captured_frames = frames
+    st.session_state.yt_stage = 'frames_ready'
+    # Default: all frames selected
+    for i in range(len(frames)):
+        if f'yt_keep_{i}' not in st.session_state:
+            st.session_state[f'yt_keep_{i}'] = True
+
+
+def _save_yt_frames(captured, metadata):
+    """Copy selected frames to IMAGES_DIR and insert database records."""
+    url        = st.session_state.yt_url or ''
+    video_info = st.session_state.yt_video_info or {}
+    meteorite_name = metadata.get('meteorite_name') or 'Unknown'
+
+    to_save = [f for i, f in enumerate(captured)
+               if st.session_state.get(f'yt_keep_{i}', True)]
+
+    if not to_save:
+        st.warning("No frames selected to save.")
+        return
+
+    inserted = 0
+    errors   = 0
+
+    with st.spinner(f"Saving {len(to_save)} frame(s)..."):
+        for frame in to_save:
+            ts         = frame['timestamp_s']
+            source_url = f"{url}#t={ts:.3f}"
+
+            if db.url_exists(source_url):
+                continue
+
+            video_id   = video_info.get('id', 'unknown')
+            short_hash = hashlib.md5(f"{video_id}_{ts:.3f}".encode()).hexdigest()[:8]
+            safe_name  = re.sub(r'[^\w\s-]', '_', meteorite_name)[:30].strip()
+            dest_name  = f"yt_{safe_name}_{short_hash}.jpg"
+            dest_path  = IMAGES_DIR / dest_name
+
+            src_path = Path(frame.get('path', ''))
+            if not src_path.exists():
+                st.error(f"Missing frame file: {src_path.name}")
+                errors += 1
+                continue
+
+            shutil.copy2(str(src_path), str(dest_path))
+
+            db_data = {
+                'meteorite_name':          meteorite_name or None,
+                'original_filename':       frame['filename'],
+                'stored_filename':         dest_name,
+                'source_url':              source_url,
+                'page_url':                url,
+                'photo_page_url':          None,
+                'file_format':             'jpg',
+                'file_size_bytes':         dest_path.stat().st_size,
+                'width_px':                frame.get('width', 0),
+                'height_px':               frame.get('height', 0),
+                'primary_type':            metadata.get('primary_type') or None,
+                'secondary_type':          metadata.get('secondary_type') or None,
+                'detailed_classification': metadata.get('detailed_classification') or None,
+                'mass_grams':              metadata.get('mass_grams'),
+                'fall_or_find':            metadata.get('fall_or_find') or None,
+                'discovery_date':          None,
+                'discovery_location':      metadata.get('discovery_location') or None,
+                'discovery_latitude':      metadata.get('discovery_latitude'),
+                'discovery_longitude':     metadata.get('discovery_longitude'),
+                'terrain_type':            metadata.get('terrain_type') or None,
+                'image_context':           metadata.get('image_context') or 'video_frame',
+                'viewing_angle':           metadata.get('viewing_angle') or None,
+                'background_type':         metadata.get('background_type') or None,
+                'lighting_type':           metadata.get('lighting_type') or None,
+                'license':                 None,
+                'photographer':            video_info.get('uploader') or None,
+                'needs_review':            metadata.get('needs_review', True),
+                'notes': (metadata.get('notes') or
+                          f"YouTube: {video_info.get('title', '')} t={ts:.2f}s"),
+            }
+
+            try:
+                image_id = db.insert_meteorite(db_data)
+                extra = {
+                    'in_situ':              metadata.get('in_situ', False),
+                    'sectioned':            metadata.get('sectioned', False),
+                    'fusion_crust_present': metadata.get('fusion_crust_present', False),
+                    'regmaglypts_present':  metadata.get('regmaglypts_present', False),
+                    'visible_metal':        metadata.get('visible_metal', False),
+                    'parent_url':           metadata.get('parent_url') or None,
+                }
+                if metadata.get('photo_quality'):
+                    extra['photo_quality'] = metadata['photo_quality']
+                if metadata.get('weathering_grade'):
+                    extra['weathering_grade'] = metadata['weathering_grade']
+                db.update_meteorite(image_id, extra)
+                inserted += 1
+            except Exception as e:
+                st.error(f"DB error saving frame: {e}")
+                dest_path.unlink(missing_ok=True)
+                errors += 1
+
+    _clear_yt_staging()
+
+    if inserted > 0:
+        st.success(f"Saved {inserted} frame(s) to database!")
+        _reset_yt_state()
+        st.session_state.view = 'browse'
+        st.rerun()
+    elif errors:
+        st.error("All saves failed — check the errors above.")
+
+
+def show_youtube_picker_view():
+    """Multi-stage view: download → launch picker → review frames → save."""
+    if st.button("< Back to New Meteorite"):
+        _reset_yt_state()
+        st.session_state.view = 'add_new'
+        st.rerun()
+
+    st.subheader("YouTube Frame Picker")
+
+    url      = st.session_state.yt_url or ''
+    metadata = st.session_state.yt_metadata or {}
+    stage    = st.session_state.yt_stage   # None | 'downloaded' | 'picker_running' | 'frames_ready'
+
+    st.write(f"**URL:** {url}")
+    if metadata.get('meteorite_name'):
+        st.write(f"**Meteorite:** {metadata['meteorite_name']}")
+    st.divider()
+
+    # ── Stage 1: Download ────────────────────────────────────────────────────
+    if stage is None:
+        if not YT_DLP_AVAILABLE:
+            st.error("yt-dlp not installed. Run: `pip install yt-dlp`")
+            return
+        st.markdown("**Step 1 of 3 — Download video**")
+        st.caption(f"Video will be saved to: `{VIDEOS_DIR}`")
+        if st.button("Download Video", type="primary"):
+            _do_download(url)
+            st.rerun()
+
+    # ── Stage 2: Launch picker ───────────────────────────────────────────────
+    elif stage == 'downloaded':
+        if not CV2_AVAILABLE:
+            st.error("opencv-python not installed. Run: `pip install opencv-python`")
+            return
+        info     = st.session_state.yt_video_info or {}
+        title    = info.get('title', 'Unknown')
+        uploader = info.get('uploader', '')
+        dur      = info.get('duration', 0) or 0
+        st.success(
+            f"Downloaded: **{title}**"
+            + (f" by {uploader}" if uploader else '')
+            + f"  ({int(dur)//60}m {int(dur)%60}s)"
+        )
+        st.caption(f"Saved to: `{st.session_state.yt_video_path}`")
+        st.markdown("**Step 2 of 3 — Pick frames**")
+        st.markdown("A separate window will open. Use the controls below to navigate and capture frames.")
+        st.markdown("""
+| Key | Action |
+|-----|--------|
+| **Space** | Capture current frame |
+| **P** | Play / Pause |
+| **. / →** | Step forward 1 frame |
+| **, / ←** | Step backward 1 frame |
+| **D** | Jump forward 5 seconds |
+| **A** | Jump backward 5 seconds |
+| **Q / Esc** | Quit and return here |
+""")
+        if st.button("Launch Frame Picker Window", type="primary"):
+            _do_launch_picker()
+            st.rerun()
+
+    # ── Stage 3: Picker running ──────────────────────────────────────────────
+    elif stage == 'picker_running':
+        proc = st.session_state.yt_process
+        # Auto-detect if the process has already exited
+        if proc and proc.poll() is not None:
+            _load_captured_frames()
+            st.rerun()
+
+        st.info("**Frame picker window is open.** Capture frames, then close the window (Q/Esc).")
+        st.markdown("""
+| Key | Action |
+|-----|--------|
+| **Space** | Capture current frame |
+| **P** | Play / Pause |
+| **. / →** | Step forward 1 frame |
+| **, / ←** | Step backward 1 frame |
+| **D** | Jump forward 5 seconds |
+| **A** | Jump backward 5 seconds |
+| **Q / Esc** | Quit picker and return here |
+""")
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            if st.button("Done — Load Captured Frames", type="primary"):
+                if proc and proc.poll() is None:
+                    proc.wait(timeout=10)
+                _load_captured_frames()
+                st.rerun()
+        with col2:
+            if st.button("Refresh Status"):
+                st.rerun()
+
+    # ── Stage 4: Review and save ─────────────────────────────────────────────
+    elif stage == 'frames_ready':
+        captured = st.session_state.yt_captured_frames or []
+
+        if not captured:
+            st.warning("No frames were captured.")
+            if st.button("Re-launch Frame Picker"):
+                st.session_state.yt_stage = 'downloaded'
+                st.rerun()
+            return
+
+        st.markdown(f"**Step 3 of 3 — Review {len(captured)} captured frame(s)**")
+        st.caption("Uncheck any frames you do not want to save.")
+
+        col_all, col_none = st.columns([1, 1])
+        with col_all:
+            if st.button("Select All"):
+                for i in range(len(captured)):
+                    st.session_state[f'yt_keep_{i}'] = True
+                st.rerun()
+        with col_none:
+            if st.button("Deselect All"):
+                for i in range(len(captured)):
+                    st.session_state[f'yt_keep_{i}'] = False
+                st.rerun()
+
+        COLS = 4
+        for row_start in range(0, len(captured), COLS):
+            cols = st.columns(COLS)
+            for ci in range(COLS):
+                idx = row_start + ci
+                if idx >= len(captured):
+                    break
+                frame = captured[idx]
+                with cols[ci]:
+                    fpath = Path(frame.get('path', ''))
+                    if fpath.exists():
+                        st.image(str(fpath), use_container_width=True)
+                    st.checkbox(
+                        f"{frame['timestamp_s']:.1f}s",
+                        key=f"yt_keep_{idx}",
+                    )
+
+        n_keep = sum(1 for i in range(len(captured))
+                     if st.session_state.get(f'yt_keep_{i}', True))
+
+        st.divider()
+        if n_keep == 0:
+            st.warning("No frames selected.")
+        else:
+            if st.button(f"Save {n_keep} Frame(s) to Database", type="primary"):
+                _save_yt_frames(captured, metadata)
+
+
+# ---------------------------------------------------------------------------
 
 
 def _show_pagination(max_page, position):
@@ -446,7 +820,7 @@ def show_add_view():
         submitted = st.form_submit_button("Save Meteorite")
 
         st.markdown("#### Image URL")
-        image_url = st.text_input("Image URL", placeholder="https://example.com/meteorite.jpg")
+        image_url = st.text_input("Image URL", placeholder="https://example.com/meteorite.jpg  or  https://youtube.com/watch?v=...")
 
         st.markdown("#### Image Context")
         in_situ = st.checkbox("In Situ", key="add_in_situ")
@@ -492,6 +866,56 @@ def show_add_view():
         if submitted:
             if not image_url:
                 st.error("Please enter an image URL.")
+
+            # ── YouTube URL → hand off to the frame picker ───────────────────
+            elif is_youtube_url(image_url):
+                if not YT_DLP_AVAILABLE:
+                    st.error("yt-dlp not installed. Run: `pip install yt-dlp`")
+                elif not CV2_AVAILABLE:
+                    st.error("opencv-python not installed. Run: `pip install opencv-python`")
+                else:
+                    def _to_dec(val):
+                        try:
+                            return float(val) if val and str(val).strip() else None
+                        except ValueError:
+                            return None
+
+                    st.session_state.yt_url = image_url
+                    st.session_state.yt_metadata = {
+                        'meteorite_name':          new_name if new_name else selected_name,
+                        'primary_type':            primary_type,
+                        'secondary_type':          secondary_type,
+                        'detailed_classification': detailed_classification,
+                        'weathering_grade':        weathering_grade,
+                        'mass_grams':              _to_dec(mass_grams),
+                        'fall_or_find':            fall_or_find or None,
+                        'discovery_location':      new_location if new_location else selected_location,
+                        'discovery_latitude':      _to_dec(discovery_latitude),
+                        'discovery_longitude':     _to_dec(discovery_longitude),
+                        'terrain_type':            terrain_type,
+                        'in_situ':                 in_situ,
+                        'sectioned':               sectioned,
+                        'fusion_crust_present':    fusion_crust_present,
+                        'regmaglypts_present':     regmaglypts_present,
+                        'visible_metal':           visible_metal,
+                        'photo_quality':           photo_quality or None,
+                        'image_context':           image_context,
+                        'viewing_angle':           viewing_angle,
+                        'background_type':         background_type,
+                        'lighting_type':           lighting_type,
+                        'needs_review':            needs_review,
+                        'parent_url':              parent_url,
+                        'notes':                   notes,
+                        'weathering_grade':        weathering_grade,
+                    }
+                    st.session_state.yt_stage = None
+                    st.session_state.yt_video_path = None
+                    st.session_state.yt_video_info = None
+                    st.session_state.yt_process = None
+                    st.session_state.yt_captured_frames = None
+                    st.session_state.view = 'youtube_picker'
+                    st.rerun()
+
             elif db.url_exists(image_url):
                 st.error("This image URL is already in the database.")
             else:
@@ -584,7 +1008,9 @@ def show_add_view():
 
 
 # --- Main routing ---
-if st.session_state.view == 'add_new':
+if st.session_state.view == 'youtube_picker':
+    show_youtube_picker_view()
+elif st.session_state.view == 'add_new':
     show_add_view()
 elif st.session_state.selected_id is not None:
     st.session_state.view = 'detail'
