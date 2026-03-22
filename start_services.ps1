@@ -85,7 +85,7 @@ if (Test-Port 9090) {
         Start-Process cmd -ArgumentList "/c `"$PROJECT_DIR\label_studio\start_sam_backend.bat`"" -WindowStyle Minimized
         Write-Host "  SAM backend starting at http://localhost:9090" -ForegroundColor Green
     } else {
-        Write-Host "  SAM weights not found — skipping." -ForegroundColor Gray
+        Write-Host "  SAM weights not found - skipping." -ForegroundColor Gray
         Write-Host "  To enable: python label_studio/download_sam_weights.py" -ForegroundColor Gray
     }
 }
