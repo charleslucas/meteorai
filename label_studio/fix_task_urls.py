@@ -63,14 +63,22 @@ def fix_tasks(project_id, session, base):
     errors = 0
 
     for task in tasks:
+        from urllib.parse import unquote
         image_url = task.get("data", {}).get("image", "")
+        # Normalise URL-encoded backslashes (Windows storage sync artefact)
+        normalised = unquote(image_url).replace("\\", "/")
 
-        if image_url.startswith(NEW_PREFIX):
-            skipped += 1
-            continue
-
-        if image_url.startswith(OLD_PREFIX):
-            filename = image_url[len(OLD_PREFIX):]
+        if normalised.startswith(NEW_PREFIX):
+            if normalised == image_url:
+                skipped += 1
+                continue
+            # URL was correct after normalization but had encoded backslashes — fix it
+            new_url = normalised
+        elif normalised.startswith(OLD_PREFIX):
+            filename = normalised[len(OLD_PREFIX):]
+            filename = filename.lstrip("/")
+            if filename.startswith("images/"):
+                filename = filename[len("images/"):]
             new_url = NEW_PREFIX + filename
         else:
             skipped += 1

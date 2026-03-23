@@ -111,17 +111,24 @@ LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=/path/to/meteorai/meteorite_scraper \
 label-studio start --port 8080
 ```
 
-Note: The `LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED` and `LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT` environment variables are required so Label Studio can serve images directly from the images directory.
+Note: The `LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED` and `LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT` environment variables are required so Label Studio can serve images directly from the images directory. The document root must be set to the `meteorite_scraper/` directory (not the `images/` subdirectory).
 
 ## 5. Label Studio First-Time Setup
 
 1. Open http://localhost:8080 and create a local account.
-2. Go to **Account & Settings** and copy your API key.
-3. Run the project setup script to create the annotation project and import all meteorite images as tasks:
+2. Go to **Account & Settings** and copy your **Legacy API Token** (not the JWT token).
+3. Run the project setup script to create the annotation project and import all existing meteorite images as tasks:
 ```bash
-python label_studio/setup_project.py --api-key YOUR_API_KEY
+python label_studio/setup_project.py --api-key YOUR_LEGACY_TOKEN
 ```
-4. Open the **Meteorite Annotation** project in Label Studio and begin annotating.
+4. Add the following to `meteorite_scraper/.env` so the Streamlit app automatically pushes new images to Label Studio as they are added:
+```
+LABEL_STUDIO_API_KEY=YOUR_LEGACY_TOKEN
+LABEL_STUDIO_PROJECT_ID=2
+```
+5. Open the **Meteorite Annotation** project in Label Studio and begin annotating.
+
+**Automatic task creation:** Once the `.env` values are set, any image added via the Streamlit app (manual entry or YouTube frame picker) is pushed to Label Studio immediately — no manual sync or script needed.
    - Use **RectangleLabels** to draw bounding boxes around objects.
    - Use **PolygonLabels** for precise segmentation outlines.
 

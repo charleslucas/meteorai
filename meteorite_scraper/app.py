@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from database import DatabaseManager
 from config import IMAGES_DIR, METADATA_DIR, SCRAPE_CONFIG, VIDEOS_DIR
+from label_studio_client import push_task as ls_push_task
 from utils import generate_filename, validate_image, save_metadata_json
 
 try:
@@ -292,6 +293,7 @@ def _save_yt_frames(captured, metadata):
                 if metadata.get('weathering_grade'):
                     extra['weathering_grade'] = metadata['weathering_grade']
                 db.update_meteorite(image_id, extra)
+                ls_push_task({**db_data, 'image_id': image_id})
                 inserted += 1
             except Exception as e:
                 st.error(f"DB error saving frame: {e}")
@@ -1013,6 +1015,7 @@ def show_add_view():
                     if weathering_grade:
                         extra_fields['weathering_grade'] = weathering_grade
                     db.update_meteorite(image_id, extra_fields)
+                    ls_push_task({**db_data, 'image_id': image_id})
 
                     st.success(f"Meteorite added with ID {image_id}!")
                     st.session_state.selected_id = image_id

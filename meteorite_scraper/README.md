@@ -96,8 +96,9 @@ Images collected by the scraper are annotated in Label Studio and exported for m
 
 1. **Set up the Label Studio project** (one-time):
    ```bash
-   python label_studio/setup_project.py --api-key YOUR_API_KEY
+   python label_studio/setup_project.py --api-key YOUR_LEGACY_TOKEN
    ```
+   Then add `LABEL_STUDIO_API_KEY` and `LABEL_STUDIO_PROJECT_ID` to `meteorite_scraper/.env` — after that, new images are pushed to Label Studio automatically when saved via the Streamlit app.
 2. **Annotate** images in the browser at http://localhost:8080 using bounding boxes and/or polygons. The SAM ML backend (port 9090) provides automatic pre-labeling and interactive smart-tool annotation.
 3. **Export** annotations when ready to train:
    ```bash
@@ -120,6 +121,8 @@ meteorai/
 ├── label_studio/                   # Label Studio annotation integration
 │   ├── setup_project.py            # Create LS project and import images as tasks
 │   ├── export_annotations.py       # Export annotations to YOLO/COCO format
+│   ├── fix_task_urls.py            # Fix image URL paths in existing LS tasks
+│   ├── sync_task_metadata.py       # Backfill metadata on tasks created by storage sync
 │   ├── sam_backend.py              # SAM ML backend for automatic pre-labeling
 │   ├── start_sam_backend.bat       # Start the SAM backend server
 │   ├── stop_sam_backend.bat        # Stop the SAM backend server

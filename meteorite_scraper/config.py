@@ -57,6 +57,11 @@ SCRAPE_CONFIG = {
     }
 }
 
+# Label Studio integration (optional)
+LABEL_STUDIO_URL        = os.getenv('LABEL_STUDIO_URL', 'http://localhost:8080')
+LABEL_STUDIO_API_KEY    = os.getenv('LABEL_STUDIO_API_KEY', '')
+LABEL_STUDIO_PROJECT_ID = int(os.getenv('LABEL_STUDIO_PROJECT_ID', '0'))
+
 # Image processing
 IMAGE_CONFIG = {
     'min_width': 200,

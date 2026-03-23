@@ -186,8 +186,8 @@ ffmpeg -i drone_footage.mp4 -vf fps=5 meteorite_scraper/images/drone_%04d.jpg
 Choose a frame rate that captures meaningful variation without too much redundancy
 (consecutive frames are nearly identical and don't add training value).
 
-Once frames are in `meteorite_scraper/images/`, import them into Label Studio and
-annotate with SAM as normal, then re-export and retrain.
+Once frames are saved via the Streamlit app they are pushed to Label Studio automatically
+(no manual sync needed). Annotate with SAM as normal, then re-export and retrain.
 
 ## Notes on Dataset Size
 
