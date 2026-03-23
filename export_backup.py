@@ -137,7 +137,16 @@ def export_data_json(env: dict, output_json: Path) -> int:
     return len(rows)
 
 
-def get_ls_session(base_url: str, username: str, password: str) -> requests.Session:
+def get_ls_session(base_url: str, username: str = None, password: str = None,
+                   api_key: str = None) -> requests.Session:
+    if api_key:
+        session = requests.Session()
+        prefix = "Bearer" if api_key.startswith("eyJ") else "Token"
+        session.headers.update({
+            "Authorization": f"{prefix} {api_key}",
+            "Content-Type": "application/json",
+        })
+        return session
     session = requests.Session()
     r = session.get(f"{base_url}/user/login")
     r.raise_for_status()
@@ -187,10 +196,13 @@ def export_ls_annotations(base_url: str, project_id: int, session: requests.Sess
 def main():
     parser = argparse.ArgumentParser(description="Export MeteorAI data to a ZIP backup")
     parser.add_argument("--output", help="Output ZIP path (default: meteorai_backup_TIMESTAMP.zip)")
-    parser.add_argument("--ls-url", default="http://localhost:8080")
-    parser.add_argument("--ls-project-id", type=int, help="Label Studio project ID to export")
-    parser.add_argument("--ls-username", help="Label Studio login email")
-    parser.add_argument("--ls-password", help="Label Studio login password")
+    parser.add_argument("--ls-url", default=None, help="Label Studio base URL")
+    parser.add_argument("--ls-project-id", type=int, default=None,
+                        help="Label Studio project ID to export")
+    parser.add_argument("--ls-api-key", default=None,
+                        help="Label Studio legacy API token (overrides .env)")
+    parser.add_argument("--ls-username", help="Label Studio login email (alternative to --ls-api-key)")
+    parser.add_argument("--ls-password", help="Label Studio login password (alternative to --ls-api-key)")
     parser.add_argument("--skip-label-studio", action="store_true",
                         help="Skip Label Studio annotation export")
     parser.add_argument("--skip-videos", action="store_true",
@@ -207,6 +219,14 @@ def main():
     env = load_env(ENV_FILE)
     if not env:
         print("WARNING: .env not found. Using default DB credentials.")
+
+    # Fill Label Studio defaults from .env when not provided on the command line
+    ls_url        = args.ls_url or env.get("LABEL_STUDIO_URL", "http://localhost:8080")
+    ls_api_key    = args.ls_api_key or env.get("LABEL_STUDIO_API_KEY", "")
+    ls_project_id = args.ls_project_id or (int(env["LABEL_STUDIO_PROJECT_ID"])
+                                            if env.get("LABEL_STUDIO_PROJECT_ID") else None)
+    ls_username   = args.ls_username
+    ls_password   = args.ls_password
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
@@ -234,17 +254,18 @@ def main():
         ls_task_count = 0
         if args.skip_label_studio:
             print("[3/4] Skipping Label Studio export.")
-        elif not args.ls_project_id:
-            print("[3/4] Skipping Label Studio (no --ls-project-id). "
-                  "Re-run with --ls-project-id N to include annotations.")
-        elif not (args.ls_username and args.ls_password):
-            print("[3/4] Skipping Label Studio (no --ls-username/--ls-password).")
+        elif not ls_project_id:
+            print("[3/4] Skipping Label Studio (no project ID). "
+                  "Set LABEL_STUDIO_PROJECT_ID in .env or use --ls-project-id.")
+        elif not (ls_api_key or (ls_username and ls_password)):
+            print("[3/4] Skipping Label Studio (no credentials). "
+                  "Set LABEL_STUDIO_API_KEY in .env or use --ls-api-key / --ls-username.")
         else:
-            print(f"[3/4] Exporting Label Studio annotations from {args.ls_url}...")
+            print(f"[3/4] Exporting Label Studio annotations from {ls_url}...")
             try:
-                session = get_ls_session(args.ls_url, args.ls_username, args.ls_password)
+                session = get_ls_session(ls_url, ls_username, ls_password, ls_api_key)
                 ls_task_count = export_ls_annotations(
-                    args.ls_url, args.ls_project_id, session, ls_json)
+                    ls_url, ls_project_id, session, ls_json)
             except Exception as e:
                 print(f"  WARNING: Label Studio export failed: {e}")
 

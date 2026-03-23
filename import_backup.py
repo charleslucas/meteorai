@@ -221,7 +221,15 @@ def merge_meteorite_rows(conn, rows: list) -> tuple[int, int]:
 # Label Studio helpers
 # ---------------------------------------------------------------------------
 
-def get_ls_session(base_url, username, password) -> requests.Session:
+def get_ls_session(base_url, username=None, password=None, api_key=None) -> requests.Session:
+    if api_key:
+        session = requests.Session()
+        prefix = "Bearer" if api_key.startswith("eyJ") else "Token"
+        session.headers.update({
+            "Authorization": f"{prefix} {api_key}",
+            "Content-Type": "application/json",
+        })
+        return session
     session = requests.Session()
     r = session.get(f"{base_url}/user/login")
     r.raise_for_status()
@@ -383,11 +391,13 @@ def main():
                         help="Superuser password (prompted if omitted)")
 
     # Label Studio
-    parser.add_argument("--ls-url", default="http://localhost:8080")
+    parser.add_argument("--ls-url", default=None, help="Label Studio base URL")
     parser.add_argument("--ls-project-id", type=int, default=None,
                         help="Import into an existing LS project (creates new project if omitted)")
-    parser.add_argument("--ls-username", help="Label Studio login email")
-    parser.add_argument("--ls-password", help="Label Studio login password")
+    parser.add_argument("--ls-api-key", default=None,
+                        help="Label Studio legacy API token (overrides .env)")
+    parser.add_argument("--ls-username", help="Label Studio login email (alternative to --ls-api-key)")
+    parser.add_argument("--ls-password", help="Label Studio login password (alternative to --ls-api-key)")
     parser.add_argument("--skip-label-studio", action="store_true")
 
     # Images / Videos
@@ -406,6 +416,19 @@ def main():
 
     target_images = Path(args.images_dir) if args.images_dir else IMAGES_DIR
     target_videos = Path(args.videos_dir) if args.videos_dir else VIDEOS_DIR
+
+    # Fill Label Studio defaults from .env when not provided on the command line
+    env = {}
+    if ENV_FILE.exists():
+        for line in ENV_FILE.read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                env[k.strip()] = v.strip()
+    ls_url      = args.ls_url or env.get("LABEL_STUDIO_URL", "http://localhost:8080")
+    ls_api_key  = args.ls_api_key or env.get("LABEL_STUDIO_API_KEY", "")
+    ls_username = args.ls_username
+    ls_password = args.ls_password
 
     print("=== MeteorAI Backup Import ===")
     print(f"Backup: {backup_path}")
@@ -532,14 +555,14 @@ def main():
                 print("\n[4/4] Skipping Label Studio import.")
             elif not ls_json.exists():
                 print("\n[4/4] No Label Studio annotations in this backup.")
-            elif not (args.ls_username and args.ls_password):
+            elif not (ls_api_key or (ls_username and ls_password)):
                 print("\n[4/4] Skipping Label Studio (no credentials provided).")
-                print("       Re-run with --ls-username / --ls-password to import annotations.")
+                print("       Set LABEL_STUDIO_API_KEY in .env or use --ls-api-key / --ls-username.")
             else:
-                print(f"\n[4/4] Importing Label Studio annotations into {args.ls_url}...")
+                print(f"\n[4/4] Importing Label Studio annotations into {ls_url}...")
                 try:
-                    session = get_ls_session(args.ls_url, args.ls_username, args.ls_password)
-                    import_ls_annotations(args.ls_url, session, ls_json,
+                    session = get_ls_session(ls_url, ls_username, ls_password, ls_api_key)
+                    import_ls_annotations(ls_url, session, ls_json,
                                           filename_to_id, args.ls_project_id)
                 except Exception as e:
                     print(f"  WARNING: Label Studio import failed: {e}")
