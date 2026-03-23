@@ -74,8 +74,8 @@ In the Streamlit app, go to **New Meteorite** and paste a YouTube URL into the I
 
 | Key | Action |
 |-----|--------|
-| `Space` | Capture current frame |
-| `P` | Play / Pause |
+| `Space` | Play / Pause |
+| `C` | Capture current frame |
 | `. / →` | Step forward 1 frame |
 | `, / ←` | Step backward 1 frame |
 | `D` | Jump forward 5 seconds |

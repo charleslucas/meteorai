@@ -53,7 +53,7 @@ METEORITE_COLUMNS = [
     "viewing_angle", "background_type", "lighting_type",
     "license", "photographer", "needs_review", "notes",
     # Columns added in later migrations — included if present in the backup row
-    "in_situ", "sectioned", "parent_url", "photo_quality",
+    "in_situ", "from_drone", "sectioned", "parent_url", "photo_quality",
 ]
 
 # ---------------------------------------------------------------------------

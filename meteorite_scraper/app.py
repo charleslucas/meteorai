@@ -144,7 +144,9 @@ def _do_download(url):
     """Download a YouTube video to VIDEOS_DIR and store info in session state."""
     VIDEOS_DIR.mkdir(exist_ok=True)
     ydl_opts = {
-        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+        # Prefer a pre-merged mp4/webm so ffmpeg is not required.
+        # Falls back to bestvideo+bestaudio only if ffmpeg is available.
+        'format': 'best[ext=mp4]/best[ext=webm]/best',
         'outtmpl': str(VIDEOS_DIR / '%(id)s.%(ext)s'),
         'quiet': True,
         'noplaylist': True,
@@ -278,6 +280,7 @@ def _save_yt_frames(captured, metadata):
                 image_id = db.insert_meteorite(db_data)
                 extra = {
                     'in_situ':              metadata.get('in_situ', False),
+                    'from_drone':           metadata.get('from_drone', False),
                     'sectioned':            metadata.get('sectioned', False),
                     'fusion_crust_present': metadata.get('fusion_crust_present', False),
                     'regmaglypts_present':  metadata.get('regmaglypts_present', False),
@@ -665,6 +668,7 @@ def show_detail_view(image_id):
 
             st.markdown("#### Image Context")
             in_situ = st.checkbox("In Situ", value=bool(record.get('in_situ')))
+            from_drone = st.checkbox("From Drone", value=bool(record.get('from_drone')))
             sectioned = st.checkbox("Sectioned", value=bool(record.get('sectioned')))
             needs_review = st.checkbox("Needs review", value=bool(record.get('needs_review')))
             parent_url = st.text_input("Parent URL", value=record.get('parent_url', '') or '')
@@ -724,6 +728,7 @@ def show_detail_view(image_id):
                     'discovery_longitude': to_decimal(discovery_longitude),
                     'terrain_type': terrain_type or None,
                     'in_situ': in_situ,
+                    'from_drone': from_drone,
                     'sectioned': sectioned,
                     'photo_quality': photo_quality or None,
                     'image_context': image_context or None,
@@ -816,6 +821,18 @@ def show_add_view():
 
     st.subheader("Add New Meteorite")
 
+    # Warn about missing YouTube dependencies before the form so it's always visible
+    if not YT_DLP_AVAILABLE or not CV2_AVAILABLE:
+        missing = []
+        if not YT_DLP_AVAILABLE:
+            missing.append("`yt-dlp`")
+        if not CV2_AVAILABLE:
+            missing.append("`opencv-python`")
+        st.warning(
+            f"YouTube URL support requires {' and '.join(missing)}. "
+            f"Install with: `pip install yt-dlp opencv-python`"
+        )
+
     with st.form("add_form"):
         submitted = st.form_submit_button("Save Meteorite")
 
@@ -824,6 +841,7 @@ def show_add_view():
 
         st.markdown("#### Image Context")
         in_situ = st.checkbox("In Situ", key="add_in_situ")
+        from_drone = st.checkbox("From Drone", key="add_from_drone")
         sectioned = st.checkbox("Sectioned", key="add_sectioned")
         needs_review = st.checkbox("Needs review", value=False)
         parent_url = st.text_input("Parent URL")
@@ -894,6 +912,7 @@ def show_add_view():
                         'discovery_longitude':     _to_dec(discovery_longitude),
                         'terrain_type':            terrain_type,
                         'in_situ':                 in_situ,
+                        'from_drone':              from_drone,
                         'sectioned':               sectioned,
                         'fusion_crust_present':    fusion_crust_present,
                         'regmaglypts_present':     regmaglypts_present,
@@ -982,6 +1001,7 @@ def show_add_view():
                     # Update with extra fields not in insert_meteorite
                     extra_fields = {
                         'in_situ': in_situ,
+                        'from_drone': from_drone,
                         'sectioned': sectioned,
                         'fusion_crust_present': fusion_crust_present,
                         'regmaglypts_present': regmaglypts_present,

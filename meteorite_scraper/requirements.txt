@@ -8,3 +8,5 @@ tqdm==4.66.1
 streamlit
 label-studio
 label-studio-sdk
+yt-dlp
+opencv-python

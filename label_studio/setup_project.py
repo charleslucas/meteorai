@@ -188,7 +188,7 @@ def main():
     for rec in records:
         tasks.append({
             "data": {
-                "image": f"/data/local-files/?d={rec['stored_filename']}",
+                "image": f"/data/local-files/?d=images/{rec['stored_filename']}",
                 "image_id": rec["image_id"],
                 "meteorite_name": rec.get("meteorite_name") or "Unknown",
                 "primary_type": rec.get("primary_type") or "",

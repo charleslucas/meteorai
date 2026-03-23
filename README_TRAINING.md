@@ -154,7 +154,7 @@ The Streamlit app has a built-in YouTube frame picker. Open the app, click **New
 paste a YouTube URL into the Image URL field, and follow the on-screen steps:
 
 1. Download the video (saved to `meteorite_scraper/videos/`)
-2. Navigate the video in the OpenCV frame picker window and press `Space` to capture frames
+2. Navigate the video in the OpenCV frame picker window and press `C` to capture frames
 3. Review the captured thumbnails in the browser and save selected frames to the database
 
 Requires: `pip install yt-dlp opencv-python`
@@ -163,8 +163,8 @@ Frame picker controls:
 
 | Key | Action |
 |-----|--------|
-| `Space` | Capture current frame |
-| `P` | Play / Pause |
+| `Space` | Play / Pause |
+| `C` | Capture current frame |
 | `. / →` | Step forward 1 frame |
 | `, / ←` | Step backward 1 frame |
 | `D` | Jump forward 5 seconds |
