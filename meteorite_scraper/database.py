@@ -43,7 +43,7 @@ class DatabaseManager:
                     discovery_date, discovery_location, discovery_latitude,
                     discovery_longitude, terrain_type, image_context,
                     viewing_angle, background_type, lighting_type,
-                    license, photographer, needs_review, notes
+                    license, photographer, needs_review, notes, file_hash
                 ) VALUES (
                     %(meteorite_name)s, %(original_filename)s, %(stored_filename)s,
                     %(source_url)s, %(page_url)s, %(photo_page_url)s, %(file_format)s, %(file_size_bytes)s,
@@ -52,7 +52,7 @@ class DatabaseManager:
                     %(discovery_date)s, %(discovery_location)s, %(discovery_latitude)s,
                     %(discovery_longitude)s, %(terrain_type)s, %(image_context)s,
                     %(viewing_angle)s, %(background_type)s, %(lighting_type)s,
-                    %(license)s, %(photographer)s, %(needs_review)s, %(notes)s
+                    %(license)s, %(photographer)s, %(needs_review)s, %(notes)s, %(file_hash)s
                 )
                 RETURNING image_id
             """
@@ -61,7 +61,7 @@ class DatabaseManager:
             image_id = cursor.fetchone()[0]
             logger.info(f"Inserted meteorite record with ID: {image_id}")
             return image_id
-    
+
     def url_exists(self, url):
         """Check if a URL has already been scraped"""
         with self.get_connection() as conn:
@@ -71,6 +71,17 @@ class DatabaseManager:
                 (url,)
             )
             return cursor.fetchone()[0] > 0
+
+    def hash_exists(self, file_hash):
+        """Check if an image with this SHA-256 hash already exists"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT image_id FROM meteorites WHERE file_hash = %s LIMIT 1",
+                (file_hash,)
+            )
+            row = cursor.fetchone()
+            return row[0] if row else None
 
     def photo_page_url_exists(self, photo_page_url):
         """Check if a photo page URL has already been processed"""

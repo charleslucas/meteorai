@@ -122,6 +122,29 @@ def is_youtube_url(url):
     ))
 
 
+def is_local_file_path(url):
+    """Return True if the input looks like a local filesystem path rather than a URL."""
+    if not url:
+        return False
+    s = url.strip()
+    # Explicit file:// URI
+    if s.startswith('file://'):
+        return True
+    # Absolute Unix/Cygwin paths
+    if s.startswith('/'):
+        return True
+    # Windows absolute paths: C:\... or C:/...
+    if len(s) >= 3 and s[1] == ':' and s[2] in ('/', '\\'):
+        return True
+    # Relative paths
+    if s.startswith('./') or s.startswith('.\\') or s.startswith('../') or s.startswith('..\\'):
+        return True
+    # Tilde-expanded home paths
+    if s.startswith('~'):
+        return True
+    return False
+
+
 def _clear_yt_staging():
     if YT_STAGING_DIR.exists():
         shutil.rmtree(str(YT_STAGING_DIR), ignore_errors=True)
@@ -793,7 +816,8 @@ def show_detail_view(image_id):
 
 
 def _fetch_and_store_image(url):
-    """Download an image from a URL, validate it, and save to disk. Returns (filename, image_info) or raises."""
+    """Download an image from a URL, validate it, and save to disk. Returns (filename, image_info, file_hash) or raises."""
+    import hashlib
     response = requests.get(url, headers=SCRAPE_CONFIG.get('headers', {}),
                             timeout=SCRAPE_CONFIG['request_timeout'])
     response.raise_for_status()
@@ -802,6 +826,8 @@ def _fetch_and_store_image(url):
     image_info = validate_image(image_data)
     if not image_info:
         raise ValueError("Image validation failed — too small, too large, or not a valid image format.")
+
+    file_hash = hashlib.sha256(image_data).hexdigest()
 
     extension = image_info['format']
     if extension == 'jpeg':
@@ -812,7 +838,44 @@ def _fetch_and_store_image(url):
     with open(filepath, 'wb') as f:
         f.write(image_data)
 
-    return filename, image_info
+    return filename, image_info, file_hash
+
+
+def _copy_and_store_local_image(path_str):
+    """Read a local image file, validate it, copy it into the images store. Returns (filename, image_info, canonical_url, file_hash) or raises."""
+    import pathlib
+    import hashlib
+    # Strip file:// prefix if present
+    s = path_str.strip()
+    if s.startswith('file://'):
+        s = s[7:]
+
+    src = pathlib.Path(s).expanduser().resolve()
+    if not src.exists():
+        raise FileNotFoundError(f"Local file not found: {src}")
+    if not src.is_file():
+        raise ValueError(f"Path is not a file: {src}")
+
+    image_data = src.read_bytes()
+
+    image_info = validate_image(image_data)
+    if not image_info:
+        raise ValueError("Image validation failed — too small, too large, or not a valid image format.")
+
+    file_hash = hashlib.sha256(image_data).hexdigest()
+
+    extension = image_info['format']
+    if extension == 'jpeg':
+        extension = 'jpg'
+
+    # Use a file:// canonical URL for deduplication and storage keying
+    canonical_url = src.as_uri()
+    filename = generate_filename(canonical_url, None, extension)
+    filepath = IMAGES_DIR / filename
+    with open(filepath, 'wb') as f:
+        f.write(image_data)
+
+    return filename, image_info, canonical_url, file_hash
 
 
 def show_add_view():
@@ -937,6 +1000,108 @@ def show_add_view():
                     st.session_state.view = 'youtube_picker'
                     st.rerun()
 
+            # ── Local file path → copy into image store ──────────────────────
+            elif is_local_file_path(image_url):
+                def to_decimal(val):
+                    if not val or val.strip() == '':
+                        return None
+                    try:
+                        return float(val)
+                    except ValueError:
+                        return None
+
+                try:
+                    with st.spinner("Copying local image..."):
+                        filename, image_info, canonical_url, file_hash = _copy_and_store_local_image(image_url)
+
+                    dup_id = db.hash_exists(file_hash)
+                    if dup_id:
+                        (IMAGES_DIR / filename).unlink(missing_ok=True)
+                        st.error(f"This image already exists in the database (ID {dup_id} has the same content).")
+                    elif db.url_exists(canonical_url):
+                        st.error("This local file is already in the database.")
+                    else:
+                        # Update filename with meteorite name if provided
+                        if meteorite_name:
+                            new_filename = generate_filename(canonical_url, meteorite_name, image_info['format'] if image_info['format'] != 'jpeg' else 'jpg')
+                            new_path = IMAGES_DIR / new_filename
+                            old_path = IMAGES_DIR / filename
+                            if old_path.exists() and not new_path.exists():
+                                old_path.rename(new_path)
+                                filename = new_filename
+
+                        import pathlib
+                        _raw = image_url.strip()
+                        if _raw.startswith('file://'):
+                            _raw = _raw[7:]
+                        src_path = pathlib.Path(_raw).expanduser().resolve()
+                        db_data = {
+                            'meteorite_name': meteorite_name or None,
+                            'original_filename': src_path.name,
+                            'stored_filename': filename,
+                            'source_url': canonical_url,
+                            'page_url': None,
+                            'photo_page_url': None,
+                            'file_format': image_info['format'] if image_info['format'] != 'jpeg' else 'jpg',
+                            'file_size_bytes': image_info['size_bytes'],
+                            'width_px': image_info['width'],
+                            'height_px': image_info['height'],
+                            'primary_type': primary_type or None,
+                            'secondary_type': secondary_type or None,
+                            'detailed_classification': detailed_classification or None,
+                            'mass_grams': to_decimal(mass_grams),
+                            'fall_or_find': fall_or_find or None,
+                            'discovery_date': None,
+                            'discovery_location': discovery_location or None,
+                            'discovery_latitude': to_decimal(discovery_latitude),
+                            'discovery_longitude': to_decimal(discovery_longitude),
+                            'terrain_type': terrain_type or None,
+                            'image_context': image_context or None,
+                            'viewing_angle': viewing_angle or None,
+                            'background_type': background_type or None,
+                            'lighting_type': lighting_type or None,
+                            'license': None,
+                            'photographer': None,
+                            'needs_review': needs_review,
+                            'notes': notes or None,
+                            'file_hash': file_hash,
+                        }
+
+                        image_id = db.insert_meteorite(db_data)
+
+                        save_metadata_json(image_id, {
+                            'meteorite_name': meteorite_name,
+                            'source_url': canonical_url,
+                        }, filename)
+
+                        extra_fields = {
+                            'in_situ': in_situ,
+                            'from_drone': from_drone,
+                            'sectioned': sectioned,
+                            'fusion_crust_present': fusion_crust_present,
+                            'regmaglypts_present': regmaglypts_present,
+                            'visible_metal': visible_metal,
+                            'parent_url': parent_url or None,
+                        }
+                        if photo_quality:
+                            extra_fields['photo_quality'] = photo_quality
+                        if weathering_grade:
+                            extra_fields['weathering_grade'] = weathering_grade
+                        db.update_meteorite(image_id, extra_fields)
+                        ls_push_task({**db_data, 'image_id': image_id})
+
+                        st.success(f"Meteorite added with ID {image_id}!")
+                        st.session_state.selected_id = image_id
+                        st.session_state.view = 'detail'
+                        st.rerun()
+
+                except FileNotFoundError as e:
+                    st.error(str(e))
+                except ValueError as e:
+                    st.error(str(e))
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
             elif db.url_exists(image_url):
                 st.error("This image URL is already in the database.")
             else:
@@ -950,77 +1115,84 @@ def show_add_view():
 
                 try:
                     with st.spinner("Downloading image..."):
-                        filename, image_info = _fetch_and_store_image(image_url)
+                        filename, image_info, file_hash = _fetch_and_store_image(image_url)
 
-                    # Update filename with meteorite name if provided
-                    if meteorite_name:
-                        new_filename = generate_filename(image_url, meteorite_name, image_info['format'] if image_info['format'] != 'jpeg' else 'jpg')
-                        new_path = IMAGES_DIR / new_filename
-                        old_path = IMAGES_DIR / filename
-                        if old_path.exists() and not new_path.exists():
-                            old_path.rename(new_path)
-                            filename = new_filename
+                    dup_id = db.hash_exists(file_hash)
+                    if dup_id:
+                        # Clean up the just-downloaded file since it's a duplicate
+                        (IMAGES_DIR / filename).unlink(missing_ok=True)
+                        st.error(f"This image already exists in the database (ID {dup_id} has the same content).")
+                    else:
+                        # Update filename with meteorite name if provided
+                        if meteorite_name:
+                            new_filename = generate_filename(image_url, meteorite_name, image_info['format'] if image_info['format'] != 'jpeg' else 'jpg')
+                            new_path = IMAGES_DIR / new_filename
+                            old_path = IMAGES_DIR / filename
+                            if old_path.exists() and not new_path.exists():
+                                old_path.rename(new_path)
+                                filename = new_filename
 
-                    db_data = {
-                        'meteorite_name': meteorite_name or None,
-                        'original_filename': image_url.split('/')[-1],
-                        'stored_filename': filename,
-                        'source_url': image_url,
-                        'page_url': None,
-                        'photo_page_url': None,
-                        'file_format': image_info['format'] if image_info['format'] != 'jpeg' else 'jpg',
-                        'file_size_bytes': image_info['size_bytes'],
-                        'width_px': image_info['width'],
-                        'height_px': image_info['height'],
-                        'primary_type': primary_type or None,
-                        'secondary_type': secondary_type or None,
-                        'detailed_classification': detailed_classification or None,
-                        'mass_grams': to_decimal(mass_grams),
-                        'fall_or_find': fall_or_find or None,
-                        'discovery_date': None,
-                        'discovery_location': discovery_location or None,
-                        'discovery_latitude': to_decimal(discovery_latitude),
-                        'discovery_longitude': to_decimal(discovery_longitude),
-                        'terrain_type': terrain_type or None,
-                        'image_context': image_context or None,
-                        'viewing_angle': viewing_angle or None,
-                        'background_type': background_type or None,
-                        'lighting_type': lighting_type or None,
-                        'license': None,
-                        'photographer': None,
-                        'needs_review': needs_review,
-                        'notes': notes or None,
-                    }
+                        db_data = {
+                            'meteorite_name': meteorite_name or None,
+                            'original_filename': image_url.split('/')[-1],
+                            'stored_filename': filename,
+                            'source_url': image_url,
+                            'page_url': None,
+                            'photo_page_url': None,
+                            'file_format': image_info['format'] if image_info['format'] != 'jpeg' else 'jpg',
+                            'file_size_bytes': image_info['size_bytes'],
+                            'width_px': image_info['width'],
+                            'height_px': image_info['height'],
+                            'primary_type': primary_type or None,
+                            'secondary_type': secondary_type or None,
+                            'detailed_classification': detailed_classification or None,
+                            'mass_grams': to_decimal(mass_grams),
+                            'fall_or_find': fall_or_find or None,
+                            'discovery_date': None,
+                            'discovery_location': discovery_location or None,
+                            'discovery_latitude': to_decimal(discovery_latitude),
+                            'discovery_longitude': to_decimal(discovery_longitude),
+                            'terrain_type': terrain_type or None,
+                            'image_context': image_context or None,
+                            'viewing_angle': viewing_angle or None,
+                            'background_type': background_type or None,
+                            'lighting_type': lighting_type or None,
+                            'license': None,
+                            'photographer': None,
+                            'needs_review': needs_review,
+                            'notes': notes or None,
+                            'file_hash': file_hash,
+                        }
 
-                    image_id = db.insert_meteorite(db_data)
+                        image_id = db.insert_meteorite(db_data)
 
-                    # Save metadata JSON sidecar
-                    save_metadata_json(image_id, {
-                        'meteorite_name': meteorite_name,
-                        'source_url': image_url,
-                    }, filename)
+                        # Save metadata JSON sidecar
+                        save_metadata_json(image_id, {
+                            'meteorite_name': meteorite_name,
+                            'source_url': image_url,
+                        }, filename)
 
-                    # Update with extra fields not in insert_meteorite
-                    extra_fields = {
-                        'in_situ': in_situ,
-                        'from_drone': from_drone,
-                        'sectioned': sectioned,
-                        'fusion_crust_present': fusion_crust_present,
-                        'regmaglypts_present': regmaglypts_present,
-                        'visible_metal': visible_metal,
-                        'parent_url': parent_url or None,
-                    }
-                    if photo_quality:
-                        extra_fields['photo_quality'] = photo_quality
-                    if weathering_grade:
-                        extra_fields['weathering_grade'] = weathering_grade
-                    db.update_meteorite(image_id, extra_fields)
-                    ls_push_task({**db_data, 'image_id': image_id})
+                        # Update with extra fields not in insert_meteorite
+                        extra_fields = {
+                            'in_situ': in_situ,
+                            'from_drone': from_drone,
+                            'sectioned': sectioned,
+                            'fusion_crust_present': fusion_crust_present,
+                            'regmaglypts_present': regmaglypts_present,
+                            'visible_metal': visible_metal,
+                            'parent_url': parent_url or None,
+                        }
+                        if photo_quality:
+                            extra_fields['photo_quality'] = photo_quality
+                        if weathering_grade:
+                            extra_fields['weathering_grade'] = weathering_grade
+                        db.update_meteorite(image_id, extra_fields)
+                        ls_push_task({**db_data, 'image_id': image_id})
 
-                    st.success(f"Meteorite added with ID {image_id}!")
-                    st.session_state.selected_id = image_id
-                    st.session_state.view = 'detail'
-                    st.rerun()
+                        st.success(f"Meteorite added with ID {image_id}!")
+                        st.session_state.selected_id = image_id
+                        st.session_state.view = 'detail'
+                        st.rerun()
 
                 except requests.RequestException as e:
                     st.error(f"Failed to download image: {e}")
