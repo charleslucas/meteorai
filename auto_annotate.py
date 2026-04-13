@@ -144,6 +144,76 @@ def push_prediction(session, task_id, results, score, model_version, dry_run=Fal
 
 
 # ---------------------------------------------------------------------------
+# Containment filtering
+# ---------------------------------------------------------------------------
+
+# Classes that must be spatially contained within a parent class box.
+# Detections of these classes are dropped if they don't overlap sufficiently
+# with at least one box of their required parent class.
+CONTAINMENT_RULES = {
+    # child_class      : parent_class
+    "fusion_crust"     : "meteorite",
+    "regmaglypts"      : "meteorite",
+    "metal_flake"      : "meteorite",
+}
+
+
+def _containment_ratio(child, parent):
+    """
+    Fraction of child box covered by parent box (0.0 – 1.0).
+    Boxes are (x1, y1, x2, y2) in any consistent unit.
+    """
+    ix1 = max(child[0], parent[0])
+    iy1 = max(child[1], parent[1])
+    ix2 = min(child[2], parent[2])
+    iy2 = min(child[3], parent[3])
+    if ix2 <= ix1 or iy2 <= iy1:
+        return 0.0
+    intersection = (ix2 - ix1) * (iy2 - iy1)
+    child_area   = (child[2] - child[0]) * (child[3] - child[1])
+    return intersection / child_area if child_area > 0 else 0.0
+
+
+def apply_containment_filter(detections, threshold=0.3):
+    """
+    Remove sub-meteorite detections that don't sit inside a meteorite box.
+
+    Args:
+        detections: list of dicts with keys 'cls', 'conf', 'xyxy' (pixel coords)
+        threshold:  minimum containment ratio to keep a child detection
+
+    Returns:
+        filtered list, number of boxes dropped
+    """
+    # Index parent boxes by class name
+    parent_boxes = {}
+    for det in detections:
+        cls = det["cls"]
+        if cls in CONTAINMENT_RULES.values():
+            parent_boxes.setdefault(cls, []).append(det["xyxy"])
+
+    kept    = []
+    dropped = 0
+    for det in detections:
+        required_parent = CONTAINMENT_RULES.get(det["cls"])
+        if required_parent is None:
+            kept.append(det)
+            continue
+        parents = parent_boxes.get(required_parent, [])
+        if not parents:
+            # No parent boxes in this image at all — drop the child
+            dropped += 1
+            continue
+        best = max(_containment_ratio(det["xyxy"], p) for p in parents)
+        if best >= threshold:
+            kept.append(det)
+        else:
+            dropped += 1
+
+    return kept, dropped
+
+
+# ---------------------------------------------------------------------------
 # YOLO inference
 # ---------------------------------------------------------------------------
 
@@ -176,14 +246,18 @@ def resolve_model_path(explicit_path):
     sys.exit(1)
 
 
-def run_inference(model, image_path, conf_threshold):
+def run_inference(model, image_path, conf_threshold, containment_threshold=0.3):
     """
     Run YOLOv8 on one image and return a list of Label Studio result dicts.
-    Returns (results_list, mean_confidence).
+
+    Sub-meteorite classes (fusion_crust, regmaglypts, metal_flake) are dropped
+    if they don't overlap sufficiently with a meteorite box — enforcing the
+    real-world constraint that fusion crust can't exist without a meteorite.
+
+    Returns (results_list, mean_confidence, n_dropped).
     """
-    results = model(str(image_path), conf=conf_threshold, verbose=False)
-    ls_results = []
-    confidences = []
+    results  = model(str(image_path), conf=conf_threshold, verbose=False)
+    raw_dets = []
 
     for r in results:
         if r.boxes is None:
@@ -191,35 +265,42 @@ def run_inference(model, image_path, conf_threshold):
         orig_w, orig_h = r.orig_shape[1], r.orig_shape[0]
 
         for box in r.boxes:
-            cls_idx   = int(box.cls[0])
-            cls_name  = model.names[cls_idx]
-            conf      = float(box.conf[0])
-
-            # box.xyxy: [x1, y1, x2, y2] in pixels
             x1, y1, x2, y2 = box.xyxy[0].tolist()
-            x_pct = x1 / orig_w * 100.0
-            y_pct = y1 / orig_h * 100.0
-            w_pct = (x2 - x1) / orig_w * 100.0
-            h_pct = (y2 - y1) / orig_h * 100.0
-
-            ls_results.append({
-                "from_name": LS_FROM_NAME,
-                "to_name":   LS_TO_NAME,
-                "type":      LS_TYPE,
-                "score":     round(conf, 4),
-                "value": {
-                    "x":               round(x_pct, 4),
-                    "y":               round(y_pct, 4),
-                    "width":           round(w_pct, 4),
-                    "height":          round(h_pct, 4),
-                    "rotation":        0,
-                    "rectanglelabels": [cls_name],
-                },
+            raw_dets.append({
+                "cls":  model.names[int(box.cls[0])],
+                "conf": float(box.conf[0]),
+                "xyxy": (x1, y1, x2, y2),
+                "orig_w": orig_w,
+                "orig_h": orig_h,
             })
-            confidences.append(conf)
+
+    # Apply spatial containment constraint
+    filtered, n_dropped = apply_containment_filter(raw_dets, threshold=containment_threshold)
+
+    # Convert to Label Studio format
+    ls_results  = []
+    confidences = []
+    for det in filtered:
+        orig_w, orig_h = det["orig_w"], det["orig_h"]
+        x1, y1, x2, y2 = det["xyxy"]
+        ls_results.append({
+            "from_name": LS_FROM_NAME,
+            "to_name":   LS_TO_NAME,
+            "type":      LS_TYPE,
+            "score":     round(det["conf"], 4),
+            "value": {
+                "x":               round(x1 / orig_w * 100.0, 4),
+                "y":               round(y1 / orig_h * 100.0, 4),
+                "width":           round((x2 - x1) / orig_w * 100.0, 4),
+                "height":          round((y2 - y1) / orig_h * 100.0, 4),
+                "rotation":        0,
+                "rectanglelabels": [det["cls"]],
+            },
+        })
+        confidences.append(det["conf"])
 
     mean_conf = sum(confidences) / len(confidences) if confidences else 0.0
-    return ls_results, mean_conf
+    return ls_results, mean_conf, n_dropped
 
 
 # ---------------------------------------------------------------------------
@@ -237,6 +318,9 @@ def main():
                         help="Path to .pt model file (default: training/best_model.txt).")
     parser.add_argument("--conf", type=float, default=0.25,
                         help="Confidence threshold for detections (default: 0.25).")
+    parser.add_argument("--containment", type=float, default=0.3,
+                        help="Min fraction of a sub-meteorite box that must overlap a meteorite "
+                             "box to be kept (default: 0.3). Set to 0 to disable.")
     parser.add_argument("--replace", action="store_true",
                         help="Delete existing predictions before pushing new ones.")
     parser.add_argument("--dry-run", action="store_true",
@@ -279,6 +363,7 @@ def main():
 
     # --- Process ---
     ok = skipped = failed = no_image = no_detect = 0
+    total_dropped = 0
 
     for task in tasks:
         task_id  = task["id"]
@@ -300,11 +385,16 @@ def main():
         if args.replace and not args.dry_run:
             delete_existing_predictions(session, task_id)
 
-        # Run inference
-        ls_results, mean_conf = run_inference(model, img_path, args.conf)
+        # Run inference with containment filtering
+        ls_results, mean_conf, n_dropped = run_inference(
+            model, img_path, args.conf,
+            containment_threshold=args.containment,
+        )
+        total_dropped += n_dropped
 
         if not ls_results:
-            print(f"  → no detections above conf={args.conf}")
+            suffix = f"  (dropped {n_dropped} orphan sub-meteorite box(es))" if n_dropped else ""
+            print(f"  → no detections above conf={args.conf}{suffix}")
             no_detect += 1
             continue
 
@@ -314,7 +404,8 @@ def main():
             label = res["value"]["rectanglelabels"][0]
             counts[label] = counts.get(label, 0) + 1
         summary = ", ".join(f"{v}×{k}" for k, v in counts.items())
-        print(f"  → {len(ls_results)} detection(s): {summary}  (mean conf {mean_conf:.2f})")
+        drop_note = f"  [{n_dropped} dropped]" if n_dropped else ""
+        print(f"  → {len(ls_results)} detection(s): {summary}  (mean conf {mean_conf:.2f}){drop_note}")
 
         if push_prediction(session, task_id, ls_results, mean_conf, model_version, dry_run=args.dry_run):
             ok += 1
@@ -324,11 +415,12 @@ def main():
     # --- Summary ---
     print(f"""
 === Auto-annotation complete ===
-  Predictions pushed:  {ok}
-  No detections:       {no_detect}
-  Image not found:     {no_image}
-  Push errors:         {failed}
-  Total tasks:         {len(tasks)}
+  Predictions pushed:       {ok}
+  No detections:            {no_detect}
+  Image not found:          {no_image}
+  Push errors:              {failed}
+  Orphan boxes filtered:    {total_dropped}
+  Total tasks:              {len(tasks)}
 """)
     if ok and not args.dry_run:
         print(f"Open Label Studio at {LABEL_STUDIO_URL} to review predictions.")
