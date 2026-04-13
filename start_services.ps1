@@ -61,15 +61,15 @@ if (Test-Port 8501) {
     Write-Host "  Streamlit starting at http://localhost:8501" -ForegroundColor Green
 }
 
-# 3. Start Label Studio (if not already running on port 8080)
+# 3. Start Label Studio (if not already running on port 8081)
 #    Runs as current user so Python environment is correct.
 Write-Host "`n[3/4] Checking Label Studio..." -ForegroundColor Yellow
-if (Test-Port 8080) {
-    Write-Host "  Label Studio is already running on port 8080." -ForegroundColor Green
+if (Test-Port 8081) {
+    Write-Host "  Label Studio is already running on port 8081." -ForegroundColor Green
 } else {
     Write-Host "  Starting Label Studio..."
     Start-Process cmd -ArgumentList "/c `"$PROJECT_DIR\start_label_studio.bat`"" -WindowStyle Minimized
-    Write-Host "  Label Studio starting at http://localhost:8080" -ForegroundColor Green
+    Write-Host "  Label Studio starting at http://localhost:8081" -ForegroundColor Green
 }
 
 # 4. Start SAM ML backend (if not already running on port 9090)
@@ -98,11 +98,11 @@ Start-Process "http://localhost:8501"
 # Wait for Label Studio to be ready (it takes longer to start)
 Write-Host "Waiting for Label Studio to initialize..." -ForegroundColor Yellow
 Start-Sleep -Seconds 15
-Start-Process "http://localhost:8080"
+Start-Process "http://localhost:8081"
 
 Write-Host "`n=== All services started ===" -ForegroundColor Cyan
 Write-Host "  Streamlit:     http://localhost:8501"
-Write-Host "  Label Studio:  http://localhost:8080"
+Write-Host "  Label Studio:  http://localhost:8081"
 Write-Host "  SAM backend:   http://localhost:9090"
 Write-Host "  PostgreSQL:    localhost:5432"
 Write-Host "`nServices are running in the background."

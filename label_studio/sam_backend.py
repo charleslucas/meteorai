@@ -39,6 +39,9 @@ PROJECT_DIR = BACKEND_DIR.parent
 SCRAPER_DIR = PROJECT_DIR / "meteorite_scraper"
 sys.path.insert(0, str(SCRAPER_DIR))
 
+from dotenv import load_dotenv
+load_dotenv(SCRAPER_DIR / ".env")
+
 from config import IMAGES_DIR
 
 # Default directory to look for model weights (alongside this file)
@@ -345,9 +348,12 @@ class SAMMeteoriteBackend(LabelStudioMLBase):
         """Resolve a Label Studio image URL to an RGB numpy array."""
         # Try to load directly from disk first (fastest)
         if "?d=" in image_url:
-            filename = image_url.split("?d=")[-1]
+            # URL is like /data/local-files/?d=images/foo.jpg — strip the images/ prefix
+            d_param = image_url.split("?d=")[-1]
+            filename = Path(d_param).name
             local_path = IMAGES_DIR / filename
             if local_path.exists():
+                print(f"  Loading image from disk: {local_path}")
                 return np.array(Image.open(local_path).convert("RGB"))
 
         # Fall back to HTTP download (handles absolute URLs with host)
@@ -471,14 +477,17 @@ class SAMMeteoriteBackend(LabelStudioMLBase):
 
         for task in tasks:
             image_url = task.get("data", {}).get("image", "")
+            print(f"  predict called: image_url={image_url!r}", flush=True)
             if not image_url:
+                print("  No image URL in task data.", flush=True)
                 predictions.append({"result": [], "score": 0})
                 continue
 
             try:
                 image = self._load_image(image_url)
+                print(f"  Image loaded: shape={image.shape}", flush=True)
             except Exception as e:
-                print(f"  Could not load image '{image_url}': {e}")
+                print(f"  Could not load image '{image_url}': {e}", flush=True)
                 predictions.append({"result": [], "score": 0})
                 continue
 
@@ -506,7 +515,7 @@ class SAMMeteoriteBackend(LabelStudioMLBase):
 
             score = result[0].get("score", 0) if result else 0
             print(f"  [{mode}] {Path(image_url).name}: "
-                  f"{len(result)} annotations, score={score:.2f}")
+                  f"{len(result)} annotations, score={score:.2f}", flush=True)
             predictions.append({
                 "result": result,
                 "score": score,

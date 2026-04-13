@@ -126,7 +126,7 @@ def is_local_file_path(url):
     """Return True if the input looks like a local filesystem path rather than a URL."""
     if not url:
         return False
-    s = url.strip()
+    s = url.strip().strip('"').strip("'")
     # Explicit file:// URI
     if s.startswith('file://'):
         return True
@@ -845,8 +845,8 @@ def _copy_and_store_local_image(path_str):
     """Read a local image file, validate it, copy it into the images store. Returns (filename, image_info, canonical_url, file_hash) or raises."""
     import pathlib
     import hashlib
-    # Strip file:// prefix if present
-    s = path_str.strip()
+    # Strip surrounding quotes and file:// prefix if present
+    s = path_str.strip().strip('"').strip("'")
     if s.startswith('file://'):
         s = s[7:]
 
@@ -1031,7 +1031,7 @@ def show_add_view():
                                 filename = new_filename
 
                         import pathlib
-                        _raw = image_url.strip()
+                        _raw = image_url.strip().strip('"').strip("'")
                         if _raw.startswith('file://'):
                             _raw = _raw[7:]
                         src_path = pathlib.Path(_raw).expanduser().resolve()
