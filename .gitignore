@@ -1,6 +1,31 @@
-__pycache__
+__pycache__/
+*.pyc
+
+# Environment
+.env
 db_config.py
+
+# Local data dirs
 images/
 metadata/
 logs/
-.env
+import/
+meteorite_scraper/videos/
+
+# Training outputs (large binary files / machine-local paths)
+training/dataset/
+training/runs/
+training/best_model.txt
+*.pt
+
+# Label Studio data & exports
+label_studio/exports/
+label_studio/sam_weights/
+label_studio/model_dir/
+
+# Backup / merge-conflict artifacts
+*.orig
+*_BACKUP_*.py
+*_BASE_*.py
+*_LOCAL_*.py
+*_REMOTE_*.py
