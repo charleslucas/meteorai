@@ -148,7 +148,7 @@ def build_existing_hashes(directory):
 # Copy helper
 # ---------------------------------------------------------------------------
 
-def move_to(image_path, dest_dir, existing_hashes, dry_run):
+def move_to(image_path, dest_dir, existing_hashes, dry_run, delete_duplicates=False):
     """
     Move image_path into dest_dir with deduplication.
     Returns 'moved', 'duplicate', or 'error'.
@@ -159,6 +159,8 @@ def move_to(image_path, dest_dir, existing_hashes, dry_run):
         return "error"
 
     if file_hash in existing_hashes:
+        if delete_duplicates and not dry_run:
+            image_path.unlink()
         return "duplicate"
 
     if not dry_run:
@@ -196,6 +198,9 @@ def main():
                         help=f"Destination for in-situ images (default: sorted_in_situ/).")
     parser.add_argument("--not-in-situ-dir", default=str(NOT_IN_SITU_DIR),
                         help=f"Destination for other images (default: sorted_not_in_situ/).")
+    parser.add_argument("--delete-duplicates", action="store_true",
+                        help="Delete source files that are already in the destination "
+                             "(use after a previous run that copied instead of moved).")
     parser.add_argument("--dry-run", action="store_true",
                         help="Preview without copying anything.")
     args = parser.parse_args()
@@ -239,12 +244,14 @@ def main():
             continue
 
         if cls == "in_situ":
-            outcome = move_to(img_path, args.in_situ_dir, in_situ_hashes, args.dry_run)
+            outcome = move_to(img_path, args.in_situ_dir, in_situ_hashes, args.dry_run,
+                              args.delete_duplicates)
             if outcome == "moved":       in_situ_copied += 1
             elif outcome == "duplicate": in_situ_dup += 1
             else: errors += 1
         else:
-            outcome = move_to(img_path, args.not_in_situ_dir, not_in_situ_hashes, args.dry_run)
+            outcome = move_to(img_path, args.not_in_situ_dir, not_in_situ_hashes, args.dry_run,
+                              args.delete_duplicates)
             if outcome == "moved":       other_copied += 1
             elif outcome == "duplicate": other_dup += 1
             else: errors += 1
