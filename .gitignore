@@ -14,9 +14,14 @@ meteorite_scraper/videos/
 
 # Training outputs (large binary files / machine-local paths)
 training/dataset/
+training/classifier_data/
 training/runs/
 training/best_model.txt
+training/best_classifier.txt
 *.pt
+
+# Sorted media output
+sorted_not_in_situ/
 
 # Label Studio data & exports
 label_studio/exports/
