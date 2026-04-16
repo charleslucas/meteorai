@@ -167,7 +167,13 @@ def move_to(image_path, dest_dir, existing_hashes, dry_run):
         dest = dest_dir / image_path.name
         if dest.exists():
             dest = dest_dir / f"{image_path.stem}_{file_hash[:8]}{image_path.suffix}"
-        shutil.move(str(image_path), dest)
+        try:
+            # Try an atomic rename first (fast, same-drive moves on Windows)
+            image_path.rename(dest)
+        except OSError:
+            # Cross-drive or permission issue — fall back to copy+delete
+            shutil.copy2(str(image_path), dest)
+            image_path.unlink()
         existing_hashes.add(file_hash)
 
     return "moved"
