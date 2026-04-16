@@ -52,7 +52,7 @@ python sort_media.py --dry-run        # preview without copying
 python sort_media.py --conf 0.7       # stricter confidence (default 0.6)
 ```
 
-This runs the scene classifier and copies files into two directories:
+This runs the scene classifier and **moves** files into two directories:
 - `sorted_in_situ/` — meteorite on the ground (useful)
 - `sorted_not_in_situ/` — studio, hand, display case, etc. (kept for reference)
 
@@ -218,6 +218,7 @@ Classes need ≥ 5 annotated examples to be included in training
 - **All boxes wrong:** annotate from scratch.
 - **Already-annotated tasks:** don't bother fixing the prediction — the human
   annotation is what gets used for training.
-- **Low-confidence sort results:** images skipped by `sort_media.py` are in
-  the original directory untouched. Review them manually and drop into
-  `sorted_in_situ/` or `sorted_not_in_situ/` as appropriate.
+- **Low-confidence sort results:** `sort_media.py` moves high-confidence
+  images out; whatever remains in the source is exactly the uncertain ones.
+  Review them manually and move into `sorted_in_situ/` or
+  `sorted_not_in_situ/` as appropriate.

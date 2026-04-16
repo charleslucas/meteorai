@@ -6,8 +6,9 @@ and copy them into sorted output directories for manual review before import.
   in_situ  → sorted_in_situ/      (review, then run import_images.py)
   other    → sorted_not_in_situ/  (keep for reference, not imported)
 
-Images below the confidence threshold are left in place (not sorted) so you
-can review them manually and drop them into whichever directory is correct.
+Images are moved, not copied. Whatever remains in the source directory
+after a run is exactly the low-confidence images that need manual review —
+drop them into sorted_in_situ/ or sorted_not_in_situ/ as appropriate.
 
 Usage:
     python sort_media.py                          # sort all of unsorted_media/
@@ -147,10 +148,10 @@ def build_existing_hashes(directory):
 # Copy helper
 # ---------------------------------------------------------------------------
 
-def copy_to(image_path, dest_dir, existing_hashes, dry_run):
+def move_to(image_path, dest_dir, existing_hashes, dry_run):
     """
-    Copy image_path into dest_dir with deduplication.
-    Returns 'copied', 'duplicate', or 'error'.
+    Move image_path into dest_dir with deduplication.
+    Returns 'moved', 'duplicate', or 'error'.
     """
     try:
         file_hash = sha256_of_file(image_path)
@@ -166,10 +167,10 @@ def copy_to(image_path, dest_dir, existing_hashes, dry_run):
         dest = dest_dir / image_path.name
         if dest.exists():
             dest = dest_dir / f"{image_path.stem}_{file_hash[:8]}{image_path.suffix}"
-        shutil.copy2(image_path, dest)
+        shutil.move(str(image_path), dest)
         existing_hashes.add(file_hash)
 
-    return "copied"
+    return "moved"
 
 
 # ---------------------------------------------------------------------------
@@ -232,13 +233,13 @@ def main():
             continue
 
         if cls == "in_situ":
-            outcome = copy_to(img_path, args.in_situ_dir, in_situ_hashes, args.dry_run)
-            if outcome == "copied":   in_situ_copied += 1
+            outcome = move_to(img_path, args.in_situ_dir, in_situ_hashes, args.dry_run)
+            if outcome == "moved":       in_situ_copied += 1
             elif outcome == "duplicate": in_situ_dup += 1
             else: errors += 1
         else:
-            outcome = copy_to(img_path, args.not_in_situ_dir, not_in_situ_hashes, args.dry_run)
-            if outcome == "copied":   other_copied += 1
+            outcome = move_to(img_path, args.not_in_situ_dir, not_in_situ_hashes, args.dry_run)
+            if outcome == "moved":       other_copied += 1
             elif outcome == "duplicate": other_dup += 1
             else: errors += 1
 
@@ -248,11 +249,11 @@ def main():
 === Sort complete {"(DRY RUN)" if args.dry_run else ""} ===
 
   In-situ  → sorted_in_situ/:
-    Copied      : {in_situ_copied}
+    Moved       : {in_situ_copied}
     Duplicates  : {in_situ_dup}
 
   Other    → sorted_not_in_situ/:
-    Copied      : {other_copied}
+    Moved       : {other_copied}
     Duplicates  : {other_dup}
 
   Low confidence (skipped, review manually) : {low_conf}
