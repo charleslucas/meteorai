@@ -9,8 +9,8 @@ Usage:
 
     # Override source directories
     python train_classifier.py \\
-        --in-situ-dir  "unsorted_media/meteorites_in_situ" \\
-        --other-dir    "unsorted_media/53 Meteorite with background photos"
+        --in-situ-dir  "classifier_training_data/in_situ" \\
+        --other-dir    "classifier_training_data/other"
 
     # Tune training
     python train_classifier.py --epochs 80 --model yolov8s-cls.pt
@@ -31,8 +31,8 @@ CLASSIFIER_DIR = PROJECT_DIR / "training" / "classifier"
 DATA_DIR       = PROJECT_DIR / "training" / "classifier_data"
 
 # Default source directories
-DEFAULT_IN_SITU = PROJECT_DIR / "unsorted_media" / "meteorites_in_situ"
-DEFAULT_OTHER   = PROJECT_DIR / "unsorted_media" / "53 Meteorite with background photos"
+DEFAULT_IN_SITU = PROJECT_DIR / "classifier_training_data" / "in_situ"
+DEFAULT_OTHER   = PROJECT_DIR / "classifier_training_data" / "other"
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff", ".tif"}
 

@@ -14,6 +14,7 @@ meteorite_scraper/videos/
 unsorted_media/
 sorted_in_situ/
 sorted_not_in_situ/
+classifier_training_data/
 
 # Training outputs (large binary files / machine-local paths)
 training/dataset/

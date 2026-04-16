@@ -39,9 +39,10 @@ NOT_IN_SITU_DIR = PROJECT_DIR / "sorted_not_in_situ"
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff", ".tif"}
 
-# Subdirectory names inside source to skip (classifier training data)
+# Subdirectory names inside source to skip (classifier training data lives
+# in classifier_training_data/ now, but the background photos folder inside
+# unsorted_media/ is still "other"-class training data, not images to sort)
 TRAINING_SKIP_DIRS = {
-    "meteorites_in_situ",
     "53 meteorite with background photos",
 }
 

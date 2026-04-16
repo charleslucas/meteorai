@@ -59,17 +59,18 @@ This runs the scene classifier and copies files into two directories:
 Images below the confidence threshold are left in place — review them
 manually and drop them into whichever folder is correct.
 
-The following subdirectories inside the source are automatically skipped
-(they are classifier training data, not images to be sorted):
-- `meteorites_in_situ/`
+The following subdirectory inside the source is automatically skipped
+(it is classifier training data, not images to be sorted):
 - `53 Meteorite with background photos/`
+
+`meteorites_in_situ/` is **not** skipped — those images will be classified
+and routed normally, landing in `sorted_in_situ/` for import.
 
 ### Step 2 — Review and curate
 
 Open `sorted_in_situ/` and:
 - Delete anything that was misclassified
-- Add any images you want to include manually (from `meteorites_in_situ/`
-  or anywhere else)
+- Add any images you want to include manually (drag in from anywhere)
 
 ### Step 3 — Import into the pipeline
 
@@ -87,11 +88,11 @@ Each image is:
 4. Inserted into the database with `image_context = 'in_situ'`
 5. Pushed to Label Studio as a new task
 
-You can also import directly from `unsorted_media/meteorites_in_situ/`
-at any time if you've manually added files there:
+You can import from any directory directly — for example if you've added
+images to the classifier training set and want them in the pipeline too:
 
 ```bash
-python import_images.py --source "unsorted_media/meteorites_in_situ"
+python import_images.py --source "classifier_training_data/in_situ"
 ```
 
 ### Retraining the scene classifier
@@ -104,8 +105,12 @@ python train_classifier.py
 ```
 
 Source directories (configurable via flags):
-- `--in-situ-dir`  defaults to `unsorted_media/meteorites_in_situ/`
-- `--other-dir`    defaults to `unsorted_media/53 Meteorite with background photos/`
+- `--in-situ-dir`  defaults to `classifier_training_data/in_situ/`
+- `--other-dir`    defaults to `classifier_training_data/other/`
+
+`classifier_training_data/` is the permanent home for classifier training
+images (gitignored — images stay on disk but aren't tracked in the repo).
+Add new curated examples there to improve the classifier over time.
 
 ---
 
