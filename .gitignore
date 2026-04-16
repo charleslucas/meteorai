@@ -11,6 +11,9 @@ metadata/
 logs/
 import/
 meteorite_scraper/videos/
+unsorted_media/
+sorted_in_situ/
+sorted_not_in_situ/
 
 # Training outputs (large binary files / machine-local paths)
 training/dataset/
