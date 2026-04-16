@@ -64,8 +64,8 @@ LABEL_STUDIO_PROJECT_ID = int(os.getenv('LABEL_STUDIO_PROJECT_ID', '0'))
 
 # Image processing
 IMAGE_CONFIG = {
-    'min_width': 200,
-    'min_height': 200,
+    'min_width': 400,
+    'min_height': 400,
     'max_file_size_mb': 50,
     'allowed_formats': ['jpg', 'jpeg', 'png', 'gif', 'webp']
 }

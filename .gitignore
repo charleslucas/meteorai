@@ -13,6 +13,7 @@ import/
 meteorite_scraper/videos/
 unsorted_media/
 sorted_in_situ/
+sorted_in_situ_undersized/
 sorted_not_in_situ/
 classifier_training_data/
 
