@@ -8,7 +8,7 @@ import_images.py — Import a directory of images into the annotation pipeline:
   5. Push to Label Studio as a new task
 
 The default source is sorted_in_situ/, but you can point it at any directory —
-including unsorted_media/meteorites_on_ground/ for manual additions.
+including unsorted_media/meteorites_in_situ/ for manual additions.
 
 Usage:
     python import_images.py                            # import sorted_in_situ/

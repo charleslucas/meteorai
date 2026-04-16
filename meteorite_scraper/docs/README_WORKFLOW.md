@@ -61,14 +61,14 @@ manually and drop them into whichever folder is correct.
 
 The following subdirectories inside the source are automatically skipped
 (they are classifier training data, not images to be sorted):
-- `meteorites_on_ground/`
+- `meteorites_in_situ/`
 - `53 Meteorite with background photos/`
 
 ### Step 2 — Review and curate
 
 Open `sorted_in_situ/` and:
 - Delete anything that was misclassified
-- Add any images you want to include manually (from `meteorites_on_ground/`
+- Add any images you want to include manually (from `meteorites_in_situ/`
   or anywhere else)
 
 ### Step 3 — Import into the pipeline
@@ -87,11 +87,11 @@ Each image is:
 4. Inserted into the database with `image_context = 'in_situ'`
 5. Pushed to Label Studio as a new task
 
-You can also import directly from `unsorted_media/meteorites_on_ground/`
+You can also import directly from `unsorted_media/meteorites_in_situ/`
 at any time if you've manually added files there:
 
 ```bash
-python import_images.py --source "unsorted_media/meteorites_on_ground"
+python import_images.py --source "unsorted_media/meteorites_in_situ"
 ```
 
 ### Retraining the scene classifier
@@ -104,7 +104,7 @@ python train_classifier.py
 ```
 
 Source directories (configurable via flags):
-- `--in-situ-dir`  defaults to `unsorted_media/meteorites_on_ground/`
+- `--in-situ-dir`  defaults to `unsorted_media/meteorites_in_situ/`
 - `--other-dir`    defaults to `unsorted_media/53 Meteorite with background photos/`
 
 ---

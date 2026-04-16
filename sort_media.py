@@ -41,7 +41,7 @@ IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff", ".tif"}
 
 # Subdirectory names inside source to skip (classifier training data)
 TRAINING_SKIP_DIRS = {
-    "meteorites_on_ground",
+    "meteorites_in_situ",
     "53 meteorite with background photos",
 }
 

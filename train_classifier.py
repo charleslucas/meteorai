@@ -9,7 +9,7 @@ Usage:
 
     # Override source directories
     python train_classifier.py \\
-        --in-situ-dir  "unsorted_media/meteorites_on_ground" \\
+        --in-situ-dir  "unsorted_media/meteorites_in_situ" \\
         --other-dir    "unsorted_media/53 Meteorite with background photos"
 
     # Tune training
@@ -31,7 +31,7 @@ CLASSIFIER_DIR = PROJECT_DIR / "training" / "classifier"
 DATA_DIR       = PROJECT_DIR / "training" / "classifier_data"
 
 # Default source directories
-DEFAULT_IN_SITU = PROJECT_DIR / "unsorted_media" / "meteorites_on_ground"
+DEFAULT_IN_SITU = PROJECT_DIR / "unsorted_media" / "meteorites_in_situ"
 DEFAULT_OTHER   = PROJECT_DIR / "unsorted_media" / "53 Meteorite with background photos"
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff", ".tif"}
