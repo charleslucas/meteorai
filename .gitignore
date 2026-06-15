@@ -27,6 +27,7 @@ training/best_classifier.txt
 
 # Sorted media output
 sorted_not_in_situ/
+sorted_cut/
 
 # Label Studio data & exports
 label_studio/exports/
