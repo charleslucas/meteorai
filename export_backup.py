@@ -85,7 +85,7 @@ def dump_schema(env: dict, output_sql: Path) -> None:
 
     result = subprocess.run(
         [pg_dump, "-h", host, "-p", port, "-U", user, "-d", dbname,
-         "--no-password", "--schema-only", "--if-not-exists", "-f", str(output_sql)],
+         "--no-password", "--schema-only", "-f", str(output_sql)],
         env=env_vars,
         capture_output=True,
         text=True,

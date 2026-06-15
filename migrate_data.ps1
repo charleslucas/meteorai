@@ -60,11 +60,34 @@ param(
     [string]$ProjectDir = $PSScriptRoot,
     [switch]$SkipRegenerable,
     [switch]$DryRun,
-    [string]$DbPassword
+    [string]$DbPassword,
+    [string]$Python,
+    [switch]$SkipBackup
 )
 
 $ErrorActionPreference = 'Stop'
 $ProjectDir = (Resolve-Path $ProjectDir).Path
+
+# Resolve the FULL path to a Python interpreter that actually has the project
+# deps. On this project the deps live in the Windows Store Python 3.12, while
+# bare `python` may resolve elsewhere without them. We return sys.executable
+# (not just "py") so the backup scripts' "#!/usr/bin/env python3" shebang can't
+# reroute `py script.py` to a different, dep-less interpreter.
+function Resolve-Python {
+    if ($Python) { return $Python }
+    $probe = 'import requests, psycopg2, sys; print(sys.executable)'
+    $cands = @(@('py', '-3.12'), @('py'), @('python'))
+    foreach ($c in $cands) {
+        $exe = $c[0]
+        if (-not (Get-Command $exe -ErrorAction SilentlyContinue)) { continue }
+        $pre = if ($c.Count -gt 1) { $c[1..($c.Count - 1)] } else { @() }
+        $out = & $exe @pre -c $probe 2>$null
+        if ($LASTEXITCODE -eq 0 -and $out) { return ($out | Select-Object -Last 1).ToString().Trim() }
+    }
+    throw "No Python with project deps (requests, psycopg2) found on PATH. Pass -Python <path-to-python.exe>, or pip install -r meteorite_scraper\requirements.txt into the interpreter you want to use."
+}
+$Py = if ($DryRun) { try { Resolve-Python } catch { 'python' } } else { Resolve-Python }
+Write-Host "Using Python: $Py" -ForegroundColor DarkGray
 
 # ---------------------------------------------------------------------------
 # Directories NOT covered by export_backup.py - copied verbatim.
@@ -179,12 +202,18 @@ if ($Mode -eq 'Export') {
     # 1. DB + images + Label Studio annotations via the existing backup script.
     Write-Host "[1/4] export_backup.py (DB + images + annotations)..." -ForegroundColor Yellow
     $zipPath = Join-Path $Dest 'meteorai_backup.zip'
-    if ($DryRun) {
-        Write-Host "  [dry-run] would run: python export_backup.py --output `"$zipPath`""
+    if ($SkipBackup) {
+        if (Test-Path $zipPath) {
+            Write-Host "  -SkipBackup: reusing existing $zipPath" -ForegroundColor Green
+        } else {
+            Write-Host "  -SkipBackup set but no zip at $zipPath (continuing without it)." -ForegroundColor Yellow
+        }
+    } elseif ($DryRun) {
+        Write-Host "  [dry-run] would run: $Py export_backup.py --output `"$zipPath`""
     } else {
         Push-Location $ProjectDir
         try {
-            python export_backup.py --output $zipPath
+            & $Py export_backup.py --output $zipPath
             if ($LASTEXITCODE -ne 0) { throw "export_backup.py failed (exit $LASTEXITCODE)." }
         } finally { Pop-Location }
     }
@@ -282,7 +311,7 @@ if ($Mode -eq 'Import') {
     $zipPath = Join-Path $Source 'meteorai_backup.zip'
     if (-not (Test-Path $zipPath)) { throw "Backup zip not found at $zipPath" }
     if ($DryRun) {
-        $cmd = "python import_backup.py `"$zipPath`""
+        $cmd = "$Py import_backup.py `"$zipPath`""
         if ($DbPassword) { $cmd += " --db-password ***" }
         Write-Host "  [dry-run] would run: $cmd"
     } else {
@@ -290,7 +319,7 @@ if ($Mode -eq 'Import') {
         try {
             $argv = @($zipPath)
             if ($DbPassword) { $argv += @('--db-password', $DbPassword) }
-            python import_backup.py @argv
+            & $Py import_backup.py @argv
             if ($LASTEXITCODE -ne 0) { throw "import_backup.py failed (exit $LASTEXITCODE)." }
         } finally { Pop-Location }
     }

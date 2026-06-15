@@ -33,10 +33,12 @@ the full bundle is ~7 GB.
 
 ## OLD machine
 
-```powershell
-# Stop running services so the DB dump is consistent.
-.\stop_services.ps1
+> **Services must be RUNNING for the export**, not stopped: the export reads the
+> live PostgreSQL DB (pg_dump + a query) and pulls annotations from the Label
+> Studio API. Run `.\start_services.ps1` first if they aren't up. (Use
+> `--skip-label-studio`-equivalent only if you don't need annotations.)
 
+```powershell
 # Preview first: lists every item + sizes + grand total, copies nothing.
 .\migrate_data.ps1 -Mode Export -Dest E:\meteorai_migration -DryRun
 
