@@ -78,8 +78,13 @@ Copy that whole folder to the new machine.
    pip install -r meteorite_scraper\requirements.txt
    # Optional, only if you use the SAM annotation backend:
    pip install -r label_studio\requirements_sam.txt
-   # GPU PyTorch (recommended for training/SAM) — pick your CUDA version:
-   # pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+   # GPU PyTorch (recommended for training/SAM).
+   # First check your CUDA version: nvidia-smi | findstr "CUDA Version"
+   # Then install the matching wheel (cu128 works for CUDA 12.8–13.x):
+   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128 --force-reinstall --no-deps
+   # --force-reinstall is required if pip already installed the CPU build of torch
+   # (pip won't upgrade +cpu → +cu128 without it). Verify with:
+   # python -c "import torch; print(torch.cuda.is_available())"
    ```
 
 ---
