@@ -138,6 +138,35 @@ Once the model is trained well enough, write an inference script that:
 
 ---
 
+## Hardware
+
+### Drone: DJI Mavic Pro
+12MP (4000×3000), 1/2.3" CMOS, 78.8° FOV, f/2.2, ~27 min flight time.
+
+**Ground resolution at survey altitudes:**
+
+| Altitude (AGL) | GSD (mm/px) | 5cm meteorite | 10cm meteorite | 20cm meteorite | Coverage per frame |
+|---|---|---|---|---|---|
+| 10m | ~2.5 | ~20px ✓ | ~40px ✓ | ~80px ✓ | ~14m × 10m |
+| 15m | ~4 | ~12px ✓ | ~25px ✓ | ~50px ✓ | ~21m × 15m |
+| 20m | ~5.5 | ~9px ⚠ | ~18px ✓ | ~36px ✓ | ~28m × 21m |
+| 30m | ~8 | ~6px ✗ | ~12px ⚠ | ~25px ✓ | ~42m × 31m |
+
+✓ reliably detectable  ⚠ marginal  ✗ likely too small
+
+**Key constraints:**
+- Recommended survey altitude: **15–20m AGL** — best balance of resolution vs. coverage.
+- Coverage per battery at 15m AGL with 80% overlap: roughly **1–2 hectares**. Surveys
+  must be focused; broad strewn-field sweeps require many battery cycles.
+- Minimum detectable size: approximately **5cm at 15m AGL** (~12px across).
+- For comparison, the Australian DFN team used a 44MP Zenmuse P1 achieving 1.8mm/px.
+  Matching that resolution would require flying at ~7m AGL — impractical and unsafe.
+- Tile classifier tile size should be calibrated to ~15m AGL flight conditions.
+  At 4mm/px, a 64×64 tile covers ~25cm × 25cm of ground (comparable to the
+  Australian team's 125×125 tile at 1.8mm/px covering ~22cm × 22cm).
+
+---
+
 ## Known issues / gotchas
 
 - **`image_context` not populated** â€” the Meteoritical Bulletin scraper doesn't
