@@ -48,6 +48,8 @@ Start everything with one command from the project root:
 
 | Doc | Contents |
 |-----|----------|
+| [docs/METHODOLOGY.md](docs/METHODOLOGY.md) | Detection approach: published research, low-data strategies, architecture choices |
+| [docs/RESEARCH_REPORT.md](docs/RESEARCH_REPORT.md) | Full literature survey: papers, datasets, and per-paper notes |
 | [docs/SETUP.md](docs/SETUP.md) | Environment setup: PostgreSQL, Python, Label Studio, `.env` |
 | [docs/WORKFLOW.md](docs/WORKFLOW.md) | Full annotation + training loop: sort → import → annotate → train → repeat |
 | [docs/TRAINING.md](docs/TRAINING.md) | Model training guide and tips |
