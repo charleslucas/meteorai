@@ -354,11 +354,13 @@ def import_ls_annotations(base_url: str, session: requests.Session,
         print(f"  Nothing new to import into Label Studio.")
         return
 
-    # Import in batches
+    # Import in batches — strip to only the fields LS accepts (newer versions
+    # reject the full export format containing db_predictions / comment_authors).
     imported = 0
     batch_size = 100
     for i in range(0, len(new_tasks), batch_size):
-        batch = new_tasks[i:i + batch_size]
+        batch = [{"data": t["data"], "annotations": t.get("annotations", [])}
+                 for t in new_tasks[i:i + batch_size]]
         r = session.post(f"{base_url}/api/projects/{pid}/import", json=batch)
         r.raise_for_status()
         imported += r.json().get("task_count", len(batch))
