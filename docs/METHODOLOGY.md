@@ -412,12 +412,53 @@ Chen 2023 rather than the DFN's from-scratch CNN).
 
 ---
 
+## Hardware: DJI Mavic Pro
+
+The drone available for field surveys is a **DJI Mavic Pro** with a 12MP (4000×3000)
+1/2.3" CMOS sensor, 78.8° FOV, f/2.2 fixed lens.
+
+### Ground resolution at survey altitudes
+
+| Altitude (AGL) | GSD (mm/px) | 5cm meteorite | 10cm meteorite | 20cm meteorite | Coverage per frame |
+|---|---|---|---|---|---|
+| 10m | ~2.5 | ~20px ✓ | ~40px ✓ | ~80px ✓ | ~14m × 10m |
+| 15m | ~4 | ~12px ✓ | ~25px ✓ | ~50px ✓ | ~21m × 15m |
+| 20m | ~5.5 | ~9px ⚠ | ~18px ✓ | ~36px ✓ | ~28m × 21m |
+| 30m | ~8 | ~6px ✗ | ~12px ⚠ | ~25px ✓ | ~42m × 31m |
+| 50m | ~13 | ~4px ✗ | ~8px ✗ | ~15px ⚠ | ~70m × 52m |
+
+✓ = reliably detectable  ⚠ = marginal  ✗ = likely too small
+
+**Comparison**: The Australian team's 44MP Zenmuse P1 achieved 1.8mm/pixel at survey
+altitude. To match that resolution the Mavic Pro would need to fly at ~7m AGL —
+impractically low and risky. The practical minimum detectable size with the Mavic Pro
+is approximately **5cm at 15m AGL**.
+
+### Implications for survey planning
+
+- **Recommended survey altitude**: 15–20m AGL — best balance of coverage vs. resolution.
+  Lower (10m) gives better detection but covers very little ground per flight battery.
+- **Coverage per battery**: The Mavic Pro has ~27 min flight time. At 15m AGL with 80%
+  side overlap and 3 m/s speed, a single battery covers roughly 1–2 hectares (0.01–0.02 km²).
+  The Australian team covered 5.1 km² total — roughly 250–500× more area per flight.
+- **Tile size adjustment**: At 15m AGL (~4mm/px), a 125×125 tile covers 50cm × 50cm of
+  ground. A 64×64 tile covers 25cm × 25cm — keeping physical tile coverage similar to the
+  Australian approach. The tile size used during training must match tile size used during
+  inference.
+- **Video vs. stills**: At low altitude, continuous video (4K at 30fps) may be more
+  practical than an overlap-mosaic of stills. Each video frame becomes a source of survey
+  tiles. At 3 m/s flight speed, frames overlap significantly even without a dedicated
+  mapping flight pattern.
+- **Detection limit**: A 5cm stone at 15m AGL appears as ~12px across. At 20m it's ~9px —
+  below the threshold used in Anderson 2020 (minimum ~11px at 1.8mm/px). Plan surveys
+  for stones ≥5–8cm; smaller finds may be missed regardless of model quality.
+
+---
+
 ## Open questions
 
 - How frequently do we intend to survey, and in what terrain types? Each new terrain type
   ideally gets its own field data collection session.
-- Is there budget for a better drone camera, or are we using whatever is available? The
-  Australian team's 44MP camera was critical to their 1.8mm/pixel resolution.
 - Are there meteorite recovery groups (DFN, SETI, meteorite hunters) willing to share
   unlabelled field photos that we could use for pretraining?
 
