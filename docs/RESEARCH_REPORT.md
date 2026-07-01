@@ -131,12 +131,29 @@ The situation is poor. No curated, labelled meteorite *image* dataset for ML tra
 Contains metadata on 45,000+ meteorites (name, mass, classification, coordinates, year found). **CSV tabular data only, no images.** Based on the Meteoritical Society's Meteoritical Bulletin Database.
 
 ### MineralImage5k (Nesteruk et al. 2023) — DATASET AVAILABLE
-`datasetninja.com/mineral-image-5k` | `kaggle.com/datasets/sergeynesteruk/minerals`
-19,207 images of mineral specimens from the Fersman Mineralogical Museum. 6 broad annotation categories (stone, rock, mineral, gem, crystal, mineral ore). Includes a "10_meteor" split containing some meteorite specimens. MIT license. Available on Hugging Face, Kaggle, GitHub.
+`datasetninja.com/mineral-image-5k` | Primary source: `disk.yandex.ru/d/KapicF_MEysifg`
+GitHub: `github.com/dataset-ninja/mineral-image-5k`
+
+19,207 images of mineral specimens from the Fersman Mineralogical Museum (Moscow). MIT license.
+Split structure: 1_syst (15,005), 7_stepanov (1,361), 5_PDK (1,057), 3_op (745),
+2_mest (561), 4_cryst (220), **10_meteor (151)**.
 
 **Full citation:** Nesteruk et al. (2023). "MineralImage5k: A benchmark for zero-shot raw mineral visual recognition and description." *Computers & Geosciences*, 178, 105414.
 
-This dataset could provide background/negative examples and some positive meteorite examples. The MIT license allows training use. **Recommend integrating immediately.**
+**Important limitation (confirmed via dataset inspection):** The entire dataset is museum
+specimen photography from the Fersman Museum. The 151 "10_meteor" images are all
+display/studio shots of meteorite specimens — **there are no in-situ field photos** in this
+dataset. Split names are internal museum category codes, not collection-setting descriptors.
+
+Available metadata per image: mineral name, description, measured size in cm, bounding
+boxes, segmentation masks (some). No field/context metadata.
+
+**Usefulness by sub-problem:**
+- Feature recognition (fusion crust, meteorite body) — **Yes**, 151 more labelled specimens
+- Drone survey tile classifier — **No**, wrong perspective and background entirely
+- Hard negatives (non-meteorite rocks) — **Yes**, the non-meteor splits are useful
+
+Note: Hugging Face hosting returns 404; download via Yandex Disk or GitHub link above.
 
 ### Meteoritical Bulletin Database
 `lpi.usra.edu/meteor/`
@@ -219,7 +236,10 @@ No published papers specifically use satellite imagery for automated meteorite h
 
 5. **Contrastive/self-supervised pretraining (SimCLR)** — Thoresen 2024 used SimCLR to pretrain on unlabelled rock images before fine-tuning the classifier. Drone footage of survey terrain (no annotation needed) is useful pre-training material.
 
-6. **MineralImage5k as supplementary data** — MIT license, 19,207 mineral images including some meteorite specimens. Available immediately.
+6. **MineralImage5k as supplementary data** — MIT license, 19,207 mineral images including
+   151 meteorite specimens (museum display shots only — no in-situ field photos). Useful
+   for feature recognition training and as hard negatives; not useful for the drone tile
+   classifier. Download via Yandex Disk or `github.com/dataset-ninja/mineral-image-5k`.
 
 7. **Few-shot meta-learning** — Prototypical Networks or MAML require a large set of support classes for meta-training, then can classify new classes from few examples. Requires careful setup but designed for exactly this situation.
 
@@ -242,7 +262,7 @@ No published papers specifically use satellite imagery for automated meteorite h
 | Thoresen et al. (ESA) | 2024 | Inception-ResNet-v2 + SimCLR | 7,943 rock thin sections | 98.44% sample accuracy | Code: GitHub |
 | Chen et al. | 2023 | ResNet-34, ImageNet transfer learning | 315 images → 382K augmented | 99.1% (+11% vs no TL) | Partial |
 | Sennlaub et al. | 2022 | Multi-method classification | 20,000 meteor video events | 99.1% accuracy | Dataset: figshare |
-| MineralImage5k | 2023 | Zero-shot/few-shot benchmarks | 19,207 mineral museum images | Baselines published | Dataset: MIT |
+| MineralImage5k | 2023 | Zero-shot/few-shot benchmarks | 19,207 mineral museum images (151 meteor) | Baselines published | Dataset: MIT (museum shots only, no in-situ) |
 
 ---
 
@@ -263,3 +283,16 @@ No published papers specifically use satellite imagery for automated meteorite h
 - GFO Blog (Dale meteorite, Nov 2025) — https://gfo.rocks/blog/2025/12/03/DN250711_02_Dale_meteorite.html
 - Wesley3141 NASA SEES project — https://github.com/Wesley3141/Meteorite_Identification
 - NASA Meteorite Landings (Kaggle) — https://www.kaggle.com/datasets/nasa/meteorite-landings
+
+
+## Most important findings:
+
+Citron et al. 2021 (SETI / Nevada) is the closest match to your situation — cheap consumer drone, transfer learning from ImageNet rather than training from scratch, explicitly tried to handle terrain diversity. No code released, but the approach is clear.
+
+The DFN now has a cloud tool at find.gfo.rocks (Anderson et al. 2026) — free for researchers upon request. If you ever survey a known strewn field this might be usable, though it wouldn't help with a speculative general survey.
+
+No public meteorite image dataset for ML training exists. The DFN's internal library is not released. Our 86 images may be a meaningful fraction of what's publicly available.
+
+MineralImage5k (MIT license, 19K mineral photos, includes a "meteor" split) is an immediate free data source worth pulling in.
+
+On the one-specimen constraint: The literature actually supports this being workable. The Citron paper used 8 fragments in early tests; the key is that you need background variability, not object variability. Placing one meteorite at 20 spots in a frame, combined with basalt / painted rock stand-ins to avoid shape overfitting, gets you there. The document now has a full practical checklist for that field session.

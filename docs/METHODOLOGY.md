@@ -227,15 +227,17 @@ sums it up well: *"Unlike cats, there is no large online database of nice meteor
 
 | Dataset | Size | Type | License | Relevance |
 |---|---|---|---|---|
-| [MineralImage5k](https://datasetninja.com/mineral-image-5k) | 19,207 images, 6 categories | Mineral museum photos incl. "meteor" split | MIT | Medium — supplementary pre-training data |
+| [MineralImage5k](https://datasetninja.com/mineral-image-5k) | 19,207 images; 151 in meteor split | Museum display shots only — no in-situ photos | MIT | Medium — feature recognition only, not drone survey |
 | [NASA Meteorite Landings (Kaggle)](https://www.kaggle.com/datasets/nasa/meteorite-landings) | 45K+ entries | CSV metadata only, no images | Open | Low — no images |
 | [NightSkyUCP (Sennlaub 2022)](https://doi.org/10.6084/m9.figshare.16451625) | 20,000 events | Video, atmospheric meteors (not ground stones) | Public | Low — wrong problem |
 | Meteoritical Bulletin | ~80K entries | Some photos linked per entry | — | Medium — source for scraping |
 | DFN internal library | ~100K+ positive tiles | Drone imagery from Australian falls | Not released | N/A |
 
-**MineralImage5k** is worth integrating. Its MIT license allows training use, it includes
-a "10_meteor" split with some meteorite specimens, and the full dataset provides useful
-negatives and pre-training material. **This is an immediate actionable step.**
+**MineralImage5k** is worth integrating for feature recognition training. The 151-image
+meteor split is all museum display shots — no in-situ field photos — so it will not help
+with the drone survey tile classifier. The non-meteor splits are useful as hard negatives.
+Download via `github.com/dataset-ninja/mineral-image-5k` (Hugging Face hosting is offline).
+**This is an immediate actionable step for sub-problem 1.**
 
 ---
 
@@ -351,15 +353,13 @@ is the bottleneck. Each correction improves the model faster than annotating a f
 from scratch.
 
 ### G. MineralImage5k as supplementary data
-19,207 mineral specimen images, MIT licensed, with a "10_meteor" split that includes some
-meteorite specimens. Available on Hugging Face / Kaggle / Dataset Ninja. This could serve
-as:
-- Pre-training / backbone fine-tuning data
-- Hard negatives (non-meteorite rocks visually similar to meteorites)
-- Zero-shot benchmark comparison
+19,207 mineral specimen images, MIT licensed. The "10_meteor" split contains 151 images,
+all museum display shots of meteorite specimens — **no in-situ field photos**. Useful for:
+- Feature recognition training (sub-problem 1): mix the 151 meteor images into the training set
+- Hard negatives: the non-meteor splits contain visually similar rocks
 
-This is an **immediate, low-effort actionable step** — download it, mix the meteor split
-into our training set, use the rest as hard negatives.
+Not useful for the drone survey tile classifier (sub-problem 2) — wrong camera angle and
+background entirely. Download via `github.com/dataset-ninja/mineral-image-5k`.
 
 ---
 
