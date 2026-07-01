@@ -1,4 +1,4 @@
-# MeteorAI Setup Guide
+﻿# MeteorAI Setup Guide
 
 ## 1. Install PostgreSQL
 
@@ -42,8 +42,8 @@ To use the YouTube video frame picker in the Streamlit app (download videos and 
 pip install yt-dlp opencv-python
 ```
 
-- `yt-dlp` — downloads videos from YouTube and other sites
-- `opencv-python` — provides the frame picker window with keyboard controls
+- `yt-dlp` â€” downloads videos from YouTube and other sites
+- `opencv-python` â€” provides the frame picker window with keyboard controls
 
 `ffmpeg` is also recommended for `yt-dlp` to merge the highest-quality video and audio streams:
 ```bash
@@ -128,7 +128,7 @@ LABEL_STUDIO_PROJECT_ID=2
 ```
 5. Open the **Meteorite Annotation** project in Label Studio and begin annotating.
 
-**Automatic task creation:** Once the `.env` values are set, any image added via the Streamlit app (manual entry or YouTube frame picker) is pushed to Label Studio immediately — no manual sync or script needed.
+**Automatic task creation:** Once the `.env` values are set, any image added via the Streamlit app (manual entry or YouTube frame picker) is pushed to Label Studio immediately â€” no manual sync or script needed.
    - Use **RectangleLabels** to draw bounding boxes around objects.
    - Use **PolygonLabels** for precise segmentation outlines.
 
@@ -144,7 +144,7 @@ The SAM (Segment Anything Model) backend lets Label Studio automatically suggest
 
 SAM 2 compiles native C++ extensions during installation and requires the MSVC compiler on Windows. Install **Visual Studio Build Tools 2022** (free, no full IDE needed) before proceeding:
 
-1. Download from https://visualstudio.microsoft.com/downloads/ → "Tools for Visual Studio" → **Build Tools for Visual Studio 2022**
+1. Download from https://visualstudio.microsoft.com/downloads/ â†’ "Tools for Visual Studio" â†’ **Build Tools for Visual Studio 2022**
 2. During setup, select the **"Desktop development with C++"** workload (~4 GB)
 
 If you already have Visual Studio 2022 (any edition) installed, you already have what you need.
@@ -173,7 +173,7 @@ RTX 50-series GPUs require CUDA 12.8 or later. PyTorch cu13x wheels do not yet e
 ```bash
 # 1. Install CUDA Toolkit 12.8 from https://developer.nvidia.com/cuda-downloads
 #    Select only "CUDA Toolkit" and "CUDA Development Tools".
-#    Uncheck PhysX, GeForce Experience, and other optional components — not needed.
+#    Uncheck PhysX, GeForce Experience, and other optional components â€” not needed.
 # 2. Install PyTorch nightly cu128
 pip install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128
 # 3. Install SAM 2 and remaining dependencies
@@ -192,7 +192,7 @@ python label_studio/download_sam_weights.py --model tiny   # fastest, ~39 MB
 python label_studio/download_sam_weights.py --model large  # most accurate, ~224 MB
 ```
 
-CPU inference is supported but slow (~10–30 seconds per image in automatic mode). A GPU with ≥2 GB VRAM is recommended for interactive use.
+CPU inference is supported but slow (~10â€“30 seconds per image in automatic mode). A GPU with â‰¥2 GB VRAM is recommended for interactive use.
 
 ### Starting the SAM backend
 
@@ -206,13 +206,13 @@ Or start it standalone (double-click or run from a terminal):
 python label_studio\sam_backend.py --port 9090
 ```
 
-Keep the terminal window open — closing it stops the backend.
+Keep the terminal window open â€” closing it stops the backend.
 
 ### Connecting to Label Studio
 
-1. Open Label Studio and go to **Settings → Model → Connect Model**.
+1. Open Label Studio and go to **Settings â†’ Model â†’ Connect Model**.
 2. Enter URL: `http://localhost:9090`
-3. Enable **"Interactive preannotations"** — this activates both automatic pre-labeling when you open an image and the interactive Smart tool. Without it, the backend is connected but won't generate any annotations.
+3. Enable **"Interactive preannotations"** â€” this activates both automatic pre-labeling when you open an image and the interactive Smart tool. Without it, the backend is connected but won't generate any annotations.
 4. Click **Validate and Save**.
 
 ### Annotation modes
@@ -235,8 +235,8 @@ python label_studio/export_annotations.py \
 ```
 
 Exports are saved to:
-- `label_studio/exports/yolo/` — YOLO `.txt` files + `classes.txt`
-- `label_studio/exports/coco/` — `annotations.json` in COCO format
+- `label_studio/exports/yolo/` â€” YOLO `.txt` files + `classes.txt`
+- `label_studio/exports/coco/` â€” `annotations.json` in COCO format
 
 ## 8. Backup and Restore
 
@@ -250,7 +250,7 @@ Restore or merge into another machine:
 python import_backup.py meteorai_backup_TIMESTAMP.zip --ls-username you@email.com --ls-password yourpwd
 ```
 
-See [README_EXPORT.md](../README_EXPORT.md) for full documentation.
+See [README_EXPORT.md](EXPORT.md) for full documentation.
 
 ## Service URLs
 

@@ -1,10 +1,10 @@
-# Meteorite Image Scraper
+﻿# Meteorite Image Scraper
 
 A Python-based web scraper for collecting meteorite images from scientific databases and museums to train AI models for meteorite detection.
 
 ## Setup
 
-See [SETUP.md](SETUP.md) for full installation and configuration instructions (PostgreSQL, Python dependencies, environment file, and service startup).
+See [SETUP.md](../docs/SETUP.md) for full installation and configuration instructions (PostgreSQL, Python dependencies, environment file, and service startup).
 
 ## Usage
 
@@ -38,7 +38,7 @@ python main.py --log-level DEBUG
 # Scrape up to 50 meteorites starting at position 100 in the listing
 python main.py --start-at 100 --max-meteorites 50
 
-# Run headless (not recommended — more likely to be blocked by Cloudflare)
+# Run headless (not recommended â€” more likely to be blocked by Cloudflare)
 python main.py --headless
 ```
 
@@ -76,8 +76,8 @@ In the Streamlit app, go to **New Meteorite** and paste a YouTube URL into the I
 |-----|--------|
 | `Space` | Play / Pause |
 | `C` | Capture current frame |
-| `. / →` | Step forward 1 frame |
-| `, / ←` | Step backward 1 frame |
+| `. / â†’` | Step forward 1 frame |
+| `, / â†` | Step backward 1 frame |
 | `D` | Jump forward 5 seconds |
 | `A` | Jump backward 5 seconds |
 | `Q / Esc` | Quit and return to browser |
@@ -98,7 +98,7 @@ Images collected by the scraper are annotated in Label Studio and exported for m
    ```bash
    python label_studio/setup_project.py --api-key YOUR_LEGACY_TOKEN
    ```
-   Then add `LABEL_STUDIO_API_KEY` and `LABEL_STUDIO_PROJECT_ID` to `meteorite_scraper/.env` — after that, new images are pushed to Label Studio automatically when saved via the Streamlit app.
+   Then add `LABEL_STUDIO_API_KEY` and `LABEL_STUDIO_PROJECT_ID` to `meteorite_scraper/.env` â€” after that, new images are pushed to Label Studio automatically when saved via the Streamlit app.
 2. **Annotate** images in the browser at http://localhost:8080 using bounding boxes and/or polygons. The SAM ML backend (port 9090) provides automatic pre-labeling and interactive smart-tool annotation.
 3. **Export** annotations when ready to train:
    ```bash
@@ -106,49 +106,49 @@ Images collected by the scraper are annotated in Label Studio and exported for m
    ```
    Exports saved to `label_studio/exports/yolo/` and `label_studio/exports/coco/`.
 
-See [README_EXPORT.md](../README_EXPORT.md) for backup and restore instructions.
+See [EXPORT.md](../docs/EXPORT.md) for backup and restore instructions.
 
 ## Project Structure
 ```
 meteorai/
-├── start_services.ps1              # Start all services
-├── stop_services.ps1               # Stop all services
-├── start_services.bat              # Double-click launcher for start_services.ps1
-├── stop_services.bat               # Double-click launcher for stop_services.ps1
-├── export_backup.py                # Export full backup (DB + images + videos + annotations)
-├── import_backup.py                # Merge backup into another installation
-├── README_EXPORT.md                # Backup/restore documentation
-├── label_studio/                   # Label Studio annotation integration
-│   ├── setup_project.py            # Create LS project and import images as tasks
-│   ├── export_annotations.py       # Export annotations to YOLO/COCO format
-│   ├── fix_task_urls.py            # Fix image URL paths in existing LS tasks
-│   ├── sync_task_metadata.py       # Backfill metadata on tasks created by storage sync
-│   ├── sam_backend.py              # SAM ML backend for automatic pre-labeling
-│   ├── start_sam_backend.bat       # Start the SAM backend server
-│   ├── stop_sam_backend.bat        # Stop the SAM backend server
-│   ├── download_sam_weights.py     # Download SAM model weights
-│   ├── requirements_sam.txt        # Additional dependencies for SAM
-│   ├── sam_weights/                # SAM model checkpoint files (downloaded separately)
-│   └── exports/                    # Exported annotation files (YOLO/COCO)
-├── database/
-│   └── migrations/                 # SQL migration scripts
-└── meteorite_scraper/
-    ├── config.py                   # Configuration settings
-    ├── database.py                 # Database operations
-    ├── scraper.py                  # Main scraper logic
-    ├── utils.py                    # Helper functions
-    ├── main.py                     # CLI entry point for web scraping
-    ├── app.py                      # Streamlit browser/editor UI
-    ├── youtube_picker.py           # OpenCV frame picker (launched by app.py)
-    ├── list_database.py            # Print all database records to the console
-    ├── test_scraper.py             # Quick test — scrapes 2 meteorites only
-    ├── sources/                    # Source-specific scrapers
-    │   └── meteoritical_bulletin.py
-    ├── images/                     # Downloaded meteorite images
-    ├── videos/                     # Downloaded YouTube videos
-    ├── yt_staging/                 # Temporary staging for captured video frames
-    ├── metadata/                   # JSON metadata sidecars
-    └── logs/                       # Log files
+â”œâ”€â”€ start_services.ps1              # Start all services
+â”œâ”€â”€ stop_services.ps1               # Stop all services
+â”œâ”€â”€ start_services.bat              # Double-click launcher for start_services.ps1
+â”œâ”€â”€ stop_services.bat               # Double-click launcher for stop_services.ps1
+â”œâ”€â”€ export_backup.py                # Export full backup (DB + images + videos + annotations)
+â”œâ”€â”€ import_backup.py                # Merge backup into another installation
+â”œâ”€â”€ README_EXPORT.md                # Backup/restore documentation
+â”œâ”€â”€ label_studio/                   # Label Studio annotation integration
+â”‚   â”œâ”€â”€ setup_project.py            # Create LS project and import images as tasks
+â”‚   â”œâ”€â”€ export_annotations.py       # Export annotations to YOLO/COCO format
+â”‚   â”œâ”€â”€ fix_task_urls.py            # Fix image URL paths in existing LS tasks
+â”‚   â”œâ”€â”€ sync_task_metadata.py       # Backfill metadata on tasks created by storage sync
+â”‚   â”œâ”€â”€ sam_backend.py              # SAM ML backend for automatic pre-labeling
+â”‚   â”œâ”€â”€ start_sam_backend.bat       # Start the SAM backend server
+â”‚   â”œâ”€â”€ stop_sam_backend.bat        # Stop the SAM backend server
+â”‚   â”œâ”€â”€ download_sam_weights.py     # Download SAM model weights
+â”‚   â”œâ”€â”€ requirements_sam.txt        # Additional dependencies for SAM
+â”‚   â”œâ”€â”€ sam_weights/                # SAM model checkpoint files (downloaded separately)
+â”‚   â””â”€â”€ exports/                    # Exported annotation files (YOLO/COCO)
+â”œâ”€â”€ database/
+â”‚   â””â”€â”€ migrations/                 # SQL migration scripts
+â””â”€â”€ meteorite_scraper/
+    â”œâ”€â”€ config.py                   # Configuration settings
+    â”œâ”€â”€ database.py                 # Database operations
+    â”œâ”€â”€ scraper.py                  # Main scraper logic
+    â”œâ”€â”€ utils.py                    # Helper functions
+    â”œâ”€â”€ main.py                     # CLI entry point for web scraping
+    â”œâ”€â”€ app.py                      # Streamlit browser/editor UI
+    â”œâ”€â”€ youtube_picker.py           # OpenCV frame picker (launched by app.py)
+    â”œâ”€â”€ list_database.py            # Print all database records to the console
+    â”œâ”€â”€ test_scraper.py             # Quick test â€” scrapes 2 meteorites only
+    â”œâ”€â”€ sources/                    # Source-specific scrapers
+    â”‚   â””â”€â”€ meteoritical_bulletin.py
+    â”œâ”€â”€ images/                     # Downloaded meteorite images
+    â”œâ”€â”€ videos/                     # Downloaded YouTube videos
+    â”œâ”€â”€ yt_staging/                 # Temporary staging for captured video frames
+    â”œâ”€â”€ metadata/                   # JSON metadata sidecars
+    â””â”€â”€ logs/                       # Log files
 ```
 
 ## Adding New Sources

@@ -1,4 +1,4 @@
-# MeteorAI — Project Progress & Next Steps
+﻿# MeteorAI â€” Project Progress & Next Steps
 
 Last updated: 2026-04-12
 
@@ -25,8 +25,8 @@ importing images, and managing the pipeline.
 - **86 images** in PostgreSQL, all files present on disk (`meteorite_scraper/images/`)
 - **84/86 tasks annotated** in Label Studio (project ID 2, port 8081)
 - Annotation classes: `meteorite` (93 boxes), `fusion_crust` (76), `scale_reference` (7),
-  `regmaglypts` (1 — too few to train), `metal_flake` (0)
-- `image_context`, `background_type`, `primary_type` are mostly NULL in the DB —
+  `regmaglypts` (1 â€” too few to train), `metal_flake` (0)
+- `image_context`, `background_type`, `primary_type` are mostly NULL in the DB â€”
   the scraper wasn't populating these fields well from the Meteoritical Bulletin
 
 ### Services
@@ -42,8 +42,8 @@ All service config (URL, API key, project ID) lives in `meteorite_scraper/.env`.
 
 | Script | Purpose |
 |---|---|
-| `train_model.py` | Export annotations → YOLO dataset split → train YOLOv8 → save `best.pt` |
-| `auto_annotate.py` | Load trained model → fetch LS tasks → run inference → push predictions |
+| `train_model.py` | Export annotations â†’ YOLO dataset split â†’ train YOLOv8 â†’ save `best.pt` |
+| `auto_annotate.py` | Load trained model â†’ fetch LS tasks â†’ run inference â†’ push predictions |
 | `meteorite_scraper/push_to_label_studio.py` | Bulk-push DB records missing from Label Studio |
 | `label_studio/export_annotations.py` | Export LS annotations to YOLO + COCO formats |
 | `label_studio/sync_task_metadata.py` | Patch LS tasks missing DB metadata fields |
@@ -51,11 +51,11 @@ All service config (URL, API key, project ID) lives in `meteorite_scraper/.env`.
 | `label_studio/fix_task_urls.py` | Fix broken image URLs in LS tasks |
 
 ### Docs
-All READMEs are in `meteorite_scraper/docs/`:
-- `README_SETUP.md` — environment setup
-- `README_LABEL_STUDIO.md` — Label Studio setup, sync, SAM, export
-- `README_EXPORT.md` — annotation export workflow
-- `README_TRAINING.md` — model training guide
+All docs are in `docs/`:
+- `SETUP.md` â€” environment setup
+- `LABEL_STUDIO.md` â€” Label Studio setup, sync, SAM, export
+- `EXPORT.md` â€” annotation export workflow
+- `TRAINING.md` â€” model training guide
 
 ---
 
@@ -80,7 +80,7 @@ python train_model.py --epochs 100       # model improves each cycle
 ```
 
 The model is saved to `training/runs/meteorite_detector/weights/best.pt`
-and a pointer written to `training/best_model.txt` (gitignored — machine-local path).
+and a pointer written to `training/best_model.txt` (gitignored â€” machine-local path).
 
 ---
 
@@ -96,8 +96,8 @@ Then run `auto_annotate.py --all` and check predictions look reasonable in Label
 
 ### 2. Image sorter / classifier
 Goal: take a directory of unsorted raw meteorite images and classify each as:
-- **in-situ / on-ground** — useful for detector training
-- **studio set** — meteorite on white/black table with bright lights, not useful
+- **in-situ / on-ground** â€” useful for detector training
+- **studio set** â€” meteorite on white/black table with bright lights, not useful
 
 **Blocker:** `image_context` is NULL for almost all 86 DB images. Need to either:
 - Manually tag ~30-50 images as `in_situ` vs `studio` in the Streamlit app, OR
@@ -110,10 +110,10 @@ Once labeled examples exist, train a YOLOv8 classification model:
 ```
 
 ### 3. Scrape more data
-Only 86 images so far — detector training will improve significantly with 500+.
+Only 86 images so far â€” detector training will improve significantly with 500+.
 The Meteoritical Bulletin scraper (`meteorite_scraper/scraper.py`) is working
 but needs to be run more aggressively. Current images are mostly "Drelow" and
-"Ozerki" falls — need more variety for a robust detector.
+"Ozerki" falls â€” need more variety for a robust detector.
 
 ```bash
 cd meteorite_scraper && python main.py   # run the full scraper
@@ -128,7 +128,7 @@ python meteorite_scraper/push_to_label_studio.py
 Add a "Train & Classify" tab to `meteorite_scraper/app.py` with:
 - One-click training kick-off (calls `train_model.py` as a subprocess)
 - Show current annotation counts and model performance metrics
-- Point at a directory → run the sorter → show results with images
+- Point at a directory â†’ run the sorter â†’ show results with images
 
 ### 5. Export / inference on new images
 Once the model is trained well enough, write an inference script that:
@@ -140,14 +140,14 @@ Once the model is trained well enough, write an inference script that:
 
 ## Known issues / gotchas
 
-- **`image_context` not populated** — the Meteoritical Bulletin scraper doesn't
+- **`image_context` not populated** â€” the Meteoritical Bulletin scraper doesn't
   reliably extract context from the bulletin pages; most records have NULL here.
 - **`regmaglypts` and `metal_flake`** need more annotated examples before they
   can be trained (currently 1 and 0 respectively).
-- **Label Studio port is 8081**, not the default 8080 — all configs updated but
+- **Label Studio port is 8081**, not the default 8080 â€” all configs updated but
   watch out if spinning up a fresh instance.
-- **Windows paths** — `best_model.txt` contains an absolute Windows path; don't
+- **Windows paths** â€” `best_model.txt` contains an absolute Windows path; don't
   commit it (it's gitignored). Other scripts use `Path(__file__).resolve()` and
   work cross-platform.
 - **Merge conflict artifacts** (`app_BACKUP_984.py` etc.) are in the working dir
-  but gitignored — safe to delete manually if they're cluttering things.
+  but gitignored â€” safe to delete manually if they're cluttering things.

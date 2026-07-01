@@ -1,11 +1,11 @@
-# MeteorAI Training Guide
+﻿# MeteorAI Training Guide
 
 Training a YOLO model on annotated meteorite images to detect meteorites in drone video.
 
 ## Prerequisites
 
-- Annotations completed in Label Studio (see [meteorite_scraper/README_SETUP.md](meteorite_scraper/README_SETUP.md))
-- Ultralytics installed — stop Label Studio and the SAM backend first (their processes
+- Annotations completed in Label Studio (see [SETUP.md](SETUP.md))
+- Ultralytics installed â€” stop Label Studio and the SAM backend first (their processes
   hold OpenCV loaded, which blocks the install), then run:
   ```bash
   pip install ultralytics
@@ -15,7 +15,7 @@ Training a YOLO model on annotated meteorite images to detect meteorites in dron
 
 You'll need your Label Studio API key: open Label Studio
 On the left, go to **Organization**->**Api Token Settings** and enable Legacy Tokens
-click your avatar (top right) → **Account & Settings** → **Legacy Token** → copy the token.
+click your avatar (top right) â†’ **Account & Settings** â†’ **Legacy Token** â†’ copy the token.
 
 If you're not sure of your project ID, run the script with any ID and it will list all
 available projects:
@@ -49,8 +49,8 @@ python label_studio/export_annotations.py --project-id YOUR_PROJECT_ID --format 
 ```
 
 Exported files are saved to:
-- `label_studio/exports/yolo/` — one `.txt` label file per image + `classes.txt`
-- `label_studio/exports/coco/annotations.json` — COCO segmentation format
+- `label_studio/exports/yolo/` â€” one `.txt` label file per image + `classes.txt`
+- `label_studio/exports/coco/annotations.json` â€” COCO segmentation format
 
 ## 2. Organize the Dataset
 
@@ -59,10 +59,10 @@ YOLO expects images and labels split into train/val sets. Create this structure:
 ```
 dataset/
   images/
-    train/    ← ~80% of your meteorite images
-    val/      ← ~20% of your meteorite images
+    train/    â† ~80% of your meteorite images
+    val/      â† ~20% of your meteorite images
   labels/
-    train/    ← matching .txt label files
+    train/    â† matching .txt label files
     val/
   dataset.yaml
 ```
@@ -100,7 +100,7 @@ yolo segment train data=dataset/dataset.yaml model=yolov8n-seg.pt epochs=100 img
 Model size options (trade-off between speed and accuracy):
 | Model       | Size  | Notes                              |
 |-------------|-------|------------------------------------|
-| yolov8n.pt  | Nano  | Fastest, smallest — good starting point |
+| yolov8n.pt  | Nano  | Fastest, smallest â€” good starting point |
 | yolov8s.pt  | Small | Good balance                       |
 | yolov8m.pt  | Medium| Better accuracy, slower            |
 | yolov8l.pt  | Large | High accuracy, needs more VRAM     |
@@ -116,9 +116,9 @@ yolo detect val data=dataset/dataset.yaml model=runs/detect/train/weights/best.p
 ```
 
 Key metrics to look at:
-- **mAP50** — mean average precision at 50% IoU overlap (higher is better)
-- **Precision** — how often detections are correct
-- **Recall** — how many actual meteorites are detected
+- **mAP50** â€” mean average precision at 50% IoU overlap (higher is better)
+- **Precision** â€” how often detections are correct
+- **Recall** â€” how many actual meteorites are detected
 
 ## 5. Run Inference on Drone Video
 
@@ -145,10 +145,10 @@ yolo detect predict model=best.pt source=path/to/frames/
 
 ## 6. Adding Video Frames to the Training Set
 
-More training data — especially from the actual deployment environment (drone footage
-or reference YouTube videos) — will significantly improve accuracy.
+More training data â€” especially from the actual deployment environment (drone footage
+or reference YouTube videos) â€” will significantly improve accuracy.
 
-### From YouTube (recommended — built into the Streamlit app)
+### From YouTube (recommended â€” built into the Streamlit app)
 
 The Streamlit app has a built-in YouTube frame picker. Open the app, click **New Meteorite**,
 paste a YouTube URL into the Image URL field, and follow the on-screen steps:
@@ -165,8 +165,8 @@ Frame picker controls:
 |-----|--------|
 | `Space` | Play / Pause |
 | `C` | Capture current frame |
-| `. / →` | Step forward 1 frame |
-| `, / ←` | Step backward 1 frame |
+| `. / â†’` | Step forward 1 frame |
+| `, / â†` | Step backward 1 frame |
 | `D` | Jump forward 5 seconds |
 | `A` | Jump backward 5 seconds |
 | `Q / Esc` | Quit and return to browser |
@@ -196,7 +196,7 @@ Once frames are saved via the Streamlit app they are pushed to Label Studio auto
 - Struggle with new lighting conditions, angles, or backgrounds
 
 Strategies to improve performance with limited data:
-- **Annotate more images** — more data is the most effective improvement
-- **Data augmentation** — Ultralytics applies this automatically (flips, rotations, color jitter)
-- **Add drone footage frames** — domain-specific images will help generalize to the actual use case
-- **Use a larger pretrained model** (yolov8s or yolov8m) — more capacity for fine details
+- **Annotate more images** â€” more data is the most effective improvement
+- **Data augmentation** â€” Ultralytics applies this automatically (flips, rotations, color jitter)
+- **Add drone footage frames** â€” domain-specific images will help generalize to the actual use case
+- **Use a larger pretrained model** (yolov8s or yolov8m) â€” more capacity for fine details

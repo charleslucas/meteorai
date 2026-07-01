@@ -1,8 +1,8 @@
-# Label Studio Guide
+﻿# Label Studio Guide
 
 Label Studio runs on port 8080 and is the annotation tool for drawing bounding boxes and polygons on meteorite images for model training.
 
-See [README_SETUP.md](README_SETUP.md) for installation and startup instructions.
+See [SETUP.md](SETUP.md) for installation and startup instructions.
 
 ---
 
@@ -29,7 +29,7 @@ See [README_SETUP.md](README_SETUP.md) for installation and startup instructions
 
 ### Automatic push (normal workflow)
 
-Once `LABEL_STUDIO_API_KEY` and `LABEL_STUDIO_PROJECT_ID` are set in `.env`, any image added through the Streamlit app — whether from a URL, a local file path, or a YouTube video frame — is pushed to Label Studio immediately as a new task. No manual action needed.
+Once `LABEL_STUDIO_API_KEY` and `LABEL_STUDIO_PROJECT_ID` are set in `.env`, any image added through the Streamlit app â€” whether from a URL, a local file path, or a YouTube video frame â€” is pushed to Label Studio immediately as a new task. No manual action needed.
 
 ### Bulk push (catch-up sync)
 
@@ -60,7 +60,7 @@ The SAM (Segment Anything Model) backend lets Label Studio automatically suggest
 
 ### Installation
 
-See the **SAM ML Backend** section in [README_SETUP.md](README_SETUP.md) for full installation instructions including platform-specific PyTorch/CUDA setup and weight downloads.
+See the **SAM ML Backend** section in [SETUP.md](SETUP.md) for full installation instructions including platform-specific PyTorch/CUDA setup and weight downloads.
 
 Quick summary:
 ```bash
@@ -86,7 +86,7 @@ python label_studio\sam_backend.py --port 9090
 
 ### Connecting to Label Studio
 
-1. Open Label Studio → **Settings → Model → Connect Model**
+1. Open Label Studio â†’ **Settings â†’ Model â†’ Connect Model**
 2. Enter URL: `http://localhost:9090`
 3. Enable **"Interactive preannotations"**
 4. Click **Validate and Save**
@@ -112,5 +112,5 @@ python label_studio/export_annotations.py \
 ```
 
 Exports are saved to:
-- `label_studio/exports/yolo/` — YOLO `.txt` files + `classes.txt`
-- `label_studio/exports/coco/` — `annotations.json` in COCO format
+- `label_studio/exports/yolo/` â€” YOLO `.txt` files + `classes.txt`
+- `label_studio/exports/coco/` â€” `annotations.json` in COCO format
