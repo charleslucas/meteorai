@@ -74,6 +74,32 @@ The DFN operates 50+ automated all-sky camera stations across Australia. Each st
 
 ---
 
+### Al-Owais et al. 2022 — Meteorite vs. Rock Classification CNN (UAE) *(abstract only — no arXiv)*
+
+**Full citation:** Al-Owais, A., Sharif, M.E., Fernini, I., & Al-Nuaimi, H.M. (2022).
+"Supervised Machine Learning Applications on Meteors and Meteorites." *Proceedings of the
+International Astronautical Congress*, IAC 2022, Paris. Scopus: 85167611023.
+Source page: `research.uaeu.ac.ae/en/publications/supervised-machine-learning-applications-on-meteors-and-meteorite/`
+
+**Data:** Surveillance footage from the UAE Meteor Monitoring Network (for meteor detection);
+meteorite specimens from the Sharjah Academy for Astronomy, Space Sciences, and Technology
+collection (for meteorite vs. rock classification).
+
+**Model:** Two separate CNN models: one for detecting meteors in video frames, one for
+classifying meteorites vs. rocks from specimen images.
+
+**Results:** Both models achieved >85% accuracy.
+
+**Code/data released:** Not mentioned. Full text not publicly available (IAC conference
+proceedings, Scopus only). No arXiv preprint found.
+
+**Relevance:** One of very few papers directly addressing meteorite vs. rock visual
+classification (as opposed to atmospheric meteor detection). The specimen-based
+classification task mirrors sub-problem 1 of this project. Worth obtaining the full paper
+if institutional Scopus access is available.
+
+---
+
 ### Peña-Asensio et al. 2023 — Meteor (Atmospheric) Detection via Transfer Learning
 
 **Full citation:** Peña-Asensio, E., Trigo-Rodríguez, J.M., Grèbol-Tomàs, P., Regordosa-Avellana, D., & Rimola, A. (2023). "Deep machine learning for meteor monitoring: advances with transfer learning and gradient-weighted class activation mapping." arXiv: 2310.16826. Published in *Computers & Geosciences*.
