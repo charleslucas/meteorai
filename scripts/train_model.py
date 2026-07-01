@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
-train_model.py — Export annotations from Label Studio and train a YOLOv8
+train_model.py â€” Export annotations from Label Studio and train a YOLOv8
 detection model on meteorite images.
 
 Usage:
@@ -10,10 +10,10 @@ Usage:
     python train_model.py --epochs 100           # override epoch count
 
 Model size guide (pick based on dataset size and GPU memory):
-    yolov8n.pt  — nano,   fastest,  ~3M params   (< 100 images)
-    yolov8s.pt  — small,  default,  ~11M params  (100–500 images)
-    yolov8m.pt  — medium,           ~26M params  (500–2000 images)
-    yolov8l.pt  — large,            ~44M params  (2000+ images)
+    yolov8n.pt  â€” nano,   fastest,  ~3M params   (< 100 images)
+    yolov8s.pt  â€” small,  default,  ~11M params  (100â€“500 images)
+    yolov8m.pt  â€” medium,           ~26M params  (500â€“2000 images)
+    yolov8l.pt  â€” large,            ~44M params  (2000+ images)
 
 Requirements:
     pip install ultralytics
@@ -30,7 +30,7 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-PROJECT_DIR  = Path(__file__).resolve().parent
+PROJECT_DIR  = Path(__file__).resolve().parent.parent
 SCRAPER_DIR  = PROJECT_DIR / "meteorite_scraper"
 LS_DIR       = PROJECT_DIR / "label_studio"
 EXPORTS_DIR  = LS_DIR / "exports" / "yolo"
@@ -43,7 +43,7 @@ load_dotenv(SCRAPER_DIR / ".env")
 from config import IMAGES_DIR, LABEL_STUDIO_URL, LABEL_STUDIO_API_KEY, LABEL_STUDIO_PROJECT_ID
 
 # ---------------------------------------------------------------------------
-# Classes — keep in sync with label_studio/export_annotations.py
+# Classes â€” keep in sync with label_studio/export_annotations.py
 # ---------------------------------------------------------------------------
 CLASSES = ["meteorite", "fusion_crust", "regmaglypts", "metal_flake", "scale_reference"]
 
@@ -59,7 +59,7 @@ MIN_CLASS_EXAMPLES = 5
 def export_annotations():
     """Re-export YOLO annotations from Label Studio."""
     if not LABEL_STUDIO_API_KEY:
-        print("WARNING: LABEL_STUDIO_API_KEY not set — skipping export, using existing files.")
+        print("WARNING: LABEL_STUDIO_API_KEY not set â€” skipping export, using existing files.")
         return
 
     print("\n[1/4] Exporting annotations from Label Studio...")
@@ -72,7 +72,7 @@ def export_annotations():
     ], cwd=str(PROJECT_DIR))
 
     if result.returncode != 0:
-        print("WARNING: Export failed — continuing with existing annotation files.")
+        print("WARNING: Export failed â€” continuing with existing annotation files.")
 
 
 # ---------------------------------------------------------------------------
@@ -84,10 +84,10 @@ def build_dataset(val_split=0.15, seed=42):
     Create training/dataset/ with the following structure:
         dataset/
             images/
-                train/   ← symlinks or copies of image files
+                train/   â† symlinks or copies of image files
                 val/
             labels/
-                train/   ← YOLO .txt annotation files
+                train/   â† YOLO .txt annotation files
                 val/
             dataset.yaml
     """
@@ -129,7 +129,7 @@ def build_dataset(val_split=0.15, seed=42):
         paired.append((ann_file, img_path))
 
     if missing_images:
-        print(f"  WARNING: {len(missing_images)} annotation file(s) had no matching image — skipped.")
+        print(f"  WARNING: {len(missing_images)} annotation file(s) had no matching image â€” skipped.")
 
     if not paired:
         print("ERROR: No valid (annotation, image) pairs found.")
@@ -263,7 +263,7 @@ def report(active_classes):
         pointer.write_text(str(best))
         print(f"  Model path saved to: {pointer}")
     else:
-        print("  WARNING: best.pt not found — check training logs.")
+        print("  WARNING: best.pt not found â€” check training logs.")
     print(f"  Classes: {active_classes}")
     print(f"  Runs dir: {RUNS_DIR / 'meteorite_detector'}")
 

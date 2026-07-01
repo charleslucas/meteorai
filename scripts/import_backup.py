@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 MeteorAI Backup Import Script
 
 Safely merges a backup ZIP (from export_backup.py) into an existing or fresh installation.
-Duplicate records are detected and skipped — existing data is never overwritten or deleted.
+Duplicate records are detected and skipped â€” existing data is never overwritten or deleted.
 
 Deduplication keys:
   - Meteorite records:  source_url  (or stored_filename when source_url is absent)
@@ -36,13 +36,13 @@ import requests
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-PROJECT_DIR = Path(__file__).resolve().parent
+PROJECT_DIR  = Path(__file__).resolve().parent.parent
 SCRAPER_DIR = PROJECT_DIR / "meteorite_scraper"
 IMAGES_DIR  = SCRAPER_DIR / "images"
 VIDEOS_DIR  = SCRAPER_DIR / "videos"
 ENV_FILE    = SCRAPER_DIR / ".env"
 
-# Columns to insert (excludes image_id and created_at — let the DB assign these)
+# Columns to insert (excludes image_id and created_at â€” let the DB assign these)
 METEORITE_COLUMNS = [
     "meteorite_name", "original_filename", "stored_filename",
     "source_url", "page_url", "photo_page_url", "file_format", "file_size_bytes",
@@ -52,7 +52,7 @@ METEORITE_COLUMNS = [
     "discovery_longitude", "terrain_type", "image_context",
     "viewing_angle", "background_type", "lighting_type",
     "license", "photographer", "needs_review", "notes",
-    # Columns added in later migrations — included if present in the backup row
+    # Columns added in later migrations â€” included if present in the backup row
     "in_situ", "from_drone", "sectioned", "parent_url", "photo_quality",
 ]
 
@@ -95,7 +95,7 @@ def ensure_db_and_user(host, port, superuser, superuser_pw, dbname, username, db
     exists = pg_query(host, port, superuser, superuser_pw,
                       f"SELECT 1 FROM pg_roles WHERE rolname='{username}'")
     if exists == "1":
-        print(f"  User '{username}' already exists — updating password.")
+        print(f"  User '{username}' already exists â€” updating password.")
         run_psql([psql, "-h", host, "-p", port, "-U", superuser, "postgres",
                   "-c", f"ALTER USER {username} WITH PASSWORD '{db_password}';"],
                  superuser_pw)
@@ -111,7 +111,7 @@ def ensure_db_and_user(host, port, superuser, superuser_pw, dbname, username, db
     exists = pg_query(host, port, superuser, superuser_pw,
                       f"SELECT 1 FROM pg_database WHERE datname='{dbname}'")
     if exists == "1":
-        print(f"  Database '{dbname}' already exists — will merge data.")
+        print(f"  Database '{dbname}' already exists â€” will merge data.")
         return False  # existing DB
     else:
         print(f"  Creating database '{dbname}'...")
@@ -320,7 +320,7 @@ def import_ls_annotations(base_url: str, session: requests.Session,
 
     # Dedup: skip tasks whose stored_filename already exists in the project
     existing_ls = get_existing_ls_filenames(base_url, pid, session)
-    print(f"  Project already has {len(existing_ls)} tasks — checking for duplicates...")
+    print(f"  Project already has {len(existing_ls)} tasks â€” checking for duplicates...")
 
     new_tasks = []
     skipped_dup = skipped_orphan = 0
@@ -332,7 +332,7 @@ def import_ls_annotations(base_url: str, session: requests.Session,
             skipped_dup += 1
             continue
 
-        # Skip if no matching DB record (orphan — image was not imported or was deleted)
+        # Skip if no matching DB record (orphan â€” image was not imported or was deleted)
         if fn and fn not in filename_to_id:
             skipped_orphan += 1
             continue
@@ -354,7 +354,7 @@ def import_ls_annotations(base_url: str, session: requests.Session,
         print(f"  Nothing new to import into Label Studio.")
         return
 
-    # Import in batches — strip to only the fields LS accepts (newer versions
+    # Import in batches â€” strip to only the fields LS accepts (newer versions
     # reject the full export format containing db_predictions / comment_authors).
     imported = 0
     batch_size = 100
@@ -434,7 +434,7 @@ def main():
 
     print("=== MeteorAI Backup Import ===")
     print(f"Backup: {backup_path}")
-    print("Existing data will be preserved — only new records are added.\n")
+    print("Existing data will be preserved â€” only new records are added.\n")
 
     with zipfile.ZipFile(backup_path, "r") as zf:
         names = set(zf.namelist())
@@ -485,7 +485,7 @@ def main():
             else:
                 print("  WARNING: schema.sql not found in backup (old format?).")
 
-            # Merge meteorite data and build filename→image_id map for LS linkage
+            # Merge meteorite data and build filenameâ†’image_id map for LS linkage
             filename_to_id = {}
             if data_json.exists():
                 print("  Merging meteorite records...")

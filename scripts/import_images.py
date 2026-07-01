@@ -1,13 +1,13 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
-import_images.py — Import a directory of images into the annotation pipeline:
+import_images.py â€” Import a directory of images into the annotation pipeline:
   1. Validate each image
   2. SHA-256 dedup against the database (skips exact duplicates)
   3. Copy to meteorite_scraper/images/
   4. Insert a database record with image_context='in_situ'
   5. Push to Label Studio as a new task
 
-The default source is sorted_in_situ/, but you can point it at any directory —
+The default source is sorted_in_situ/, but you can point it at any directory â€”
 including unsorted_media/meteorites_in_situ/ for manual additions.
 
 Usage:
@@ -25,7 +25,7 @@ import hashlib
 import sys
 from pathlib import Path
 
-PROJECT_DIR = Path(__file__).resolve().parent
+PROJECT_DIR  = Path(__file__).resolve().parent.parent
 SCRAPER_DIR = PROJECT_DIR / "meteorite_scraper"
 sys.path.insert(0, str(SCRAPER_DIR))
 
@@ -144,7 +144,7 @@ def main():
     print(f"Importing from: {args.source}")
     print(f"Found {len(images)} image(s)")
     if args.dry_run:
-        print("[DRY RUN] — nothing will be written\n")
+        print("[DRY RUN] â€” nothing will be written\n")
     if not images:
         print("Nothing to do.")
         return

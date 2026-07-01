@@ -57,7 +57,7 @@ param(
 
     [string]$Dest,
     [string]$Source,
-    [string]$ProjectDir = $PSScriptRoot,
+    [string]$ProjectDir = "$PSScriptRoot\..",
     [switch]$SkipRegenerable,
     [switch]$DryRun,
     [string]$DbPassword,
@@ -209,11 +209,11 @@ if ($Mode -eq 'Export') {
             Write-Host "  -SkipBackup set but no zip at $zipPath (continuing without it)." -ForegroundColor Yellow
         }
     } elseif ($DryRun) {
-        Write-Host "  [dry-run] would run: $Py export_backup.py --output `"$zipPath`""
+        Write-Host "  [dry-run] would run: $Py $PSScriptRoot\export_backup.py --output `"$zipPath`""
     } else {
         Push-Location $ProjectDir
         try {
-            & $Py export_backup.py --output $zipPath
+            & $Py "$PSScriptRoot\export_backup.py" --output $zipPath
             if ($LASTEXITCODE -ne 0) { throw "export_backup.py failed (exit $LASTEXITCODE)." }
         } finally { Pop-Location }
     }
@@ -319,7 +319,7 @@ if ($Mode -eq 'Import') {
         try {
             $argv = @($zipPath)
             if ($DbPassword) { $argv += @('--db-password', $DbPassword) }
-            & $Py import_backup.py @argv
+            & $Py "$PSScriptRoot\import_backup.py" @argv
             if ($LASTEXITCODE -ne 0) { throw "import_backup.py failed (exit $LASTEXITCODE)." }
         } finally { Pop-Location }
     }

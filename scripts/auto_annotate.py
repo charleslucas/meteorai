@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
-auto_annotate.py — Run the trained YOLOv8 model on Label Studio tasks and push
+auto_annotate.py â€” Run the trained YOLOv8 model on Label Studio tasks and push
 predictions as pre-annotations so human reviewers only need to correct, not draw.
 
 Usage:
@@ -19,7 +19,7 @@ Usage:
     # Raise the confidence threshold (default 0.25)
     python auto_annotate.py --conf 0.4
 
-    # Dry run — show what would be pushed without actually pushing
+    # Dry run â€” show what would be pushed without actually pushing
     python auto_annotate.py --dry-run
 
 How it works:
@@ -27,7 +27,7 @@ How it works:
     2. Filter to tasks that need predictions (unannotated by default).
     3. Locate each image file on disk via the task's local-files URL.
     4. Run YOLOv8 inference.
-    5. POST a Prediction to /api/predictions — Label Studio shows these as
+    5. POST a Prediction to /api/predictions â€” Label Studio shows these as
        suggestions the human can accept, tweak, or discard.  They do NOT count
        as human annotations until the reviewer saves them.
 """
@@ -43,7 +43,7 @@ import requests
 # ---------------------------------------------------------------------------
 # Project paths & config
 # ---------------------------------------------------------------------------
-PROJECT_DIR = Path(__file__).resolve().parent
+PROJECT_DIR  = Path(__file__).resolve().parent.parent
 SCRAPER_DIR = PROJECT_DIR / "meteorite_scraper"
 sys.path.insert(0, str(SCRAPER_DIR))
 
@@ -160,7 +160,7 @@ CONTAINMENT_RULES = {
 
 def _containment_ratio(child, parent):
     """
-    Fraction of child box covered by parent box (0.0 – 1.0).
+    Fraction of child box covered by parent box (0.0 â€“ 1.0).
     Boxes are (x1, y1, x2, y2) in any consistent unit.
     """
     ix1 = max(child[0], parent[0])
@@ -201,7 +201,7 @@ def apply_containment_filter(detections, threshold=0.3):
             continue
         parents = parent_boxes.get(required_parent, [])
         if not parents:
-            # No parent boxes in this image at all — drop the child
+            # No parent boxes in this image at all â€” drop the child
             dropped += 1
             continue
         best = max(_containment_ratio(det["xyxy"], p) for p in parents)
@@ -251,7 +251,7 @@ def run_inference(model, image_path, conf_threshold, containment_threshold=0.3):
     Run YOLOv8 on one image and return a list of Label Studio result dicts.
 
     Sub-meteorite classes (fusion_crust, regmaglypts, metal_flake) are dropped
-    if they don't overlap sufficiently with a meteorite box — enforcing the
+    if they don't overlap sufficiently with a meteorite box â€” enforcing the
     real-world constraint that fusion crust can't exist without a meteorite.
 
     Returns (results_list, mean_confidence, n_dropped).
@@ -394,7 +394,7 @@ def main():
 
         if not ls_results:
             suffix = f"  (dropped {n_dropped} orphan sub-meteorite box(es))" if n_dropped else ""
-            print(f"  → no detections above conf={args.conf}{suffix}")
+            print(f"  â†’ no detections above conf={args.conf}{suffix}")
             no_detect += 1
             continue
 
@@ -403,9 +403,9 @@ def main():
         for res in ls_results:
             label = res["value"]["rectanglelabels"][0]
             counts[label] = counts.get(label, 0) + 1
-        summary = ", ".join(f"{v}×{k}" for k, v in counts.items())
+        summary = ", ".join(f"{v}Ã—{k}" for k, v in counts.items())
         drop_note = f"  [{n_dropped} dropped]" if n_dropped else ""
-        print(f"  → {len(ls_results)} detection(s): {summary}  (mean conf {mean_conf:.2f}){drop_note}")
+        print(f"  â†’ {len(ls_results)} detection(s): {summary}  (mean conf {mean_conf:.2f}){drop_note}")
 
         if push_prediction(session, task_id, ls_results, mean_conf, model_version, dry_run=args.dry_run):
             ok += 1

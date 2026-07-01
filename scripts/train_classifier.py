@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
-train_classifier.py — Train a YOLOv8 image classifier to distinguish
+train_classifier.py â€” Train a YOLOv8 image classifier to distinguish
 meteorite-in-situ (on the ground, useful) from everything else (studio,
-hand, display case — not useful for detector training).
+hand, display case â€” not useful for detector training).
 
 Usage:
     python train_classifier.py
@@ -25,7 +25,7 @@ import shutil
 import sys
 from pathlib import Path
 
-PROJECT_DIR    = Path(__file__).resolve().parent
+PROJECT_DIR  = Path(__file__).resolve().parent.parent
 SCRAPER_DIR    = PROJECT_DIR / "meteorite_scraper"
 CLASSIFIER_DIR = PROJECT_DIR / "training" / "classifier"
 DATA_DIR       = PROJECT_DIR / "training" / "classifier_data"
@@ -57,11 +57,11 @@ def collect_images(directory):
 def build_dataset(in_situ_imgs, other_imgs, val_split=0.2, seed=42):
     """
     Copy images into training/classifier_data/{train,val}/{in_situ,other}/.
-    Balances classes by downsampling the larger one to 2× the smaller.
+    Balances classes by downsampling the larger one to 2Ã— the smaller.
     """
     random.seed(seed)
 
-    # Balance: cap the larger class at 2× the smaller to avoid severe imbalance
+    # Balance: cap the larger class at 2Ã— the smaller to avoid severe imbalance
     n_min = min(len(in_situ_imgs), len(other_imgs))
     cap   = n_min * 2
     if len(in_situ_imgs) > cap:
@@ -135,7 +135,7 @@ def report():
         ptr.write_text(str(best))
         print(f"  Pointer saved to: {ptr}")
     else:
-        print("  WARNING: best.pt not found — check training logs.")
+        print("  WARNING: best.pt not found â€” check training logs.")
 
 
 def main():

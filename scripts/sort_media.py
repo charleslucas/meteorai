@@ -1,13 +1,13 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
-sort_media.py — Classify images in a directory as in-situ (useful) or other,
+sort_media.py â€” Classify images in a directory as in-situ (useful) or other,
 and copy them into sorted output directories for manual review before import.
 
-  in_situ  → sorted_in_situ/      (review, then run import_images.py)
-  other    → sorted_not_in_situ/  (keep for reference, not imported)
+  in_situ  â†’ sorted_in_situ/      (review, then run import_images.py)
+  other    â†’ sorted_not_in_situ/  (keep for reference, not imported)
 
 Images are moved, not copied. Whatever remains in the source directory
-after a run is exactly the low-confidence images that need manual review —
+after a run is exactly the low-confidence images that need manual review â€”
 drop them into sorted_in_situ/ or sorted_not_in_situ/ as appropriate.
 
 Usage:
@@ -26,7 +26,7 @@ import shutil
 import sys
 from pathlib import Path
 
-PROJECT_DIR     = Path(__file__).resolve().parent
+PROJECT_DIR  = Path(__file__).resolve().parent.parent
 SCRAPER_DIR     = PROJECT_DIR / "meteorite_scraper"
 sys.path.insert(0, str(SCRAPER_DIR))
 
@@ -173,7 +173,7 @@ def move_to(image_path, dest_dir, existing_hashes, dry_run, delete_duplicates=Fa
             # Try an atomic rename first (fast, same-drive moves on Windows)
             image_path.rename(dest)
         except OSError:
-            # Cross-drive or permission issue — fall back to copy+delete
+            # Cross-drive or permission issue â€” fall back to copy+delete
             shutil.copy2(str(image_path), dest)
             image_path.unlink()
         existing_hashes.add(file_hash)
@@ -222,7 +222,7 @@ def main():
         return
 
     if args.dry_run:
-        print("  [DRY RUN] — no files will be copied\n")
+        print("  [DRY RUN] â€” no files will be copied\n")
 
     in_situ_copied = in_situ_dup = other_copied = other_dup = low_conf = errors = 0
 
@@ -236,7 +236,7 @@ def main():
             errors += 1
             continue
 
-        print(f"  → {cls} ({conf:.0%})", end="")
+        print(f"  â†’ {cls} ({conf:.0%})", end="")
 
         if conf < args.conf:
             print("  [low confidence, skipped]")
@@ -261,11 +261,11 @@ def main():
     print(f"""
 === Sort complete {"(DRY RUN)" if args.dry_run else ""} ===
 
-  In-situ  → sorted_in_situ/:
+  In-situ  â†’ sorted_in_situ/:
     Moved       : {in_situ_copied}
     Duplicates  : {in_situ_dup}
 
-  Other    → sorted_not_in_situ/:
+  Other    â†’ sorted_not_in_situ/:
     Moved       : {other_copied}
     Duplicates  : {other_dup}
 

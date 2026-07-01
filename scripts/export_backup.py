@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 MeteorAI Backup Export Script
 
@@ -33,7 +33,7 @@ import requests
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-PROJECT_DIR = Path(__file__).resolve().parent
+PROJECT_DIR  = Path(__file__).resolve().parent.parent
 SCRAPER_DIR = PROJECT_DIR / "meteorite_scraper"
 IMAGES_DIR  = SCRAPER_DIR / "images"
 VIDEOS_DIR  = SCRAPER_DIR / "videos"

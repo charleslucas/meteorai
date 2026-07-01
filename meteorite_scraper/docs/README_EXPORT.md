@@ -1,6 +1,6 @@
-# MeteorAI Backup & Restore Guide
+﻿# MeteorAI Backup & Restore Guide
 
-The `export_backup.py` and `import_backup.py` scripts create and restore portable ZIP backups of the entire MeteorAI dataset. Backups include the meteorite database, images, and Label Studio annotations. Imports are always additive — existing data is never overwritten or deleted; only new records are added.
+The `export_backup.py` and `import_backup.py` scripts create and restore portable ZIP backups of the entire MeteorAI dataset. Backups include the meteorite database, images, and Label Studio annotations. Imports are always additive â€” existing data is never overwritten or deleted; only new records are added.
 
 ---
 
@@ -22,7 +22,7 @@ Creates a timestamped ZIP containing the database schema, all meteorite records,
 ### Basic export (database + images only)
 
 ```bash
-python export_backup.py
+python scripts/export_backup.py
 ```
 
 Output: `meteorai_backup_YYYYMMDD_HHMMSS.zip` in the project root.
@@ -30,25 +30,25 @@ Output: `meteorai_backup_YYYYMMDD_HHMMSS.zip` in the project root.
 ### Export including Label Studio annotations
 
 ```bash
-python export_backup.py --ls-project-id 1 --ls-username your@email.com --ls-password yourpwd
+python scripts/export_backup.py --ls-project-id 1 --ls-username your@email.com --ls-password yourpwd
 ```
 
 ### Export to a specific path
 
 ```bash
-python export_backup.py --output backups/my_backup.zip
+python scripts/export_backup.py --output backups/my_backup.zip
 ```
 
 ### Skip Label Studio (faster if annotations not needed)
 
 ```bash
-python export_backup.py --skip-label-studio
+python scripts/export_backup.py --skip-label-studio
 ```
 
 ### Skip videos (omit downloaded YouTube videos to keep the archive smaller)
 
 ```bash
-python export_backup.py --skip-videos
+python scripts/export_backup.py --skip-videos
 ```
 
 ### All options
@@ -67,17 +67,17 @@ python export_backup.py --skip-videos
 
 ```
 meteorai_backup_YYYYMMDD_HHMMSS.zip
-├── manifest.json                   # Metadata: date, record/image/video counts
-├── env_reference.json              # DB connection info (passwords masked)
-├── schema.sql                      # Database schema (pg_dump --schema-only)
-├── data.json                       # All meteorite rows as JSON
-├── images/                         # All meteorite image files
-│   ├── abc123_meteorite.jpg
-│   └── ...
-├── videos/                         # Downloaded YouTube videos (omitted with --skip-videos)
-│   ├── dQw4w9WgXcQ.mp4
-│   └── ...
-└── label_studio_annotations.json   # LS project config + all tasks/annotations
+â”œâ”€â”€ manifest.json                   # Metadata: date, record/image/video counts
+â”œâ”€â”€ env_reference.json              # DB connection info (passwords masked)
+â”œâ”€â”€ schema.sql                      # Database schema (pg_dump --schema-only)
+â”œâ”€â”€ data.json                       # All meteorite rows as JSON
+â”œâ”€â”€ images/                         # All meteorite image files
+â”‚   â”œâ”€â”€ abc123_meteorite.jpg
+â”‚   â””â”€â”€ ...
+â”œâ”€â”€ videos/                         # Downloaded YouTube videos (omitted with --skip-videos)
+â”‚   â”œâ”€â”€ dQw4w9WgXcQ.mp4
+â”‚   â””â”€â”€ ...
+â””â”€â”€ label_studio_annotations.json   # LS project config + all tasks/annotations
                                     # (only present when --ls-project-id is given)
 ```
 
@@ -90,44 +90,44 @@ Merges a backup ZIP into any MeteorAI installation (fresh or existing). The data
 ### Basic import (prompts for passwords)
 
 ```bash
-python import_backup.py meteorai_backup_20250101_120000.zip
+python scripts/import_backup.py meteorai_backup_20250101_120000.zip
 ```
 
 ### Import including Label Studio annotations
 
 ```bash
-python import_backup.py backup.zip --ls-username your@email.com --ls-password yourpwd
+python scripts/import_backup.py backup.zip --ls-username your@email.com --ls-password yourpwd
 ```
 
 ### Import into an existing Label Studio project
 
 ```bash
-python import_backup.py backup.zip --ls-username your@email.com --ls-password yourpwd --ls-project-id 2
+python scripts/import_backup.py backup.zip --ls-username your@email.com --ls-password yourpwd --ls-project-id 2
 ```
 
 ### Skip Label Studio during import
 
 ```bash
-python import_backup.py backup.zip --skip-label-studio
+python scripts/import_backup.py backup.zip --skip-label-studio
 ```
 
 ### Supply passwords non-interactively (e.g. in scripts)
 
 ```bash
-python import_backup.py backup.zip --db-password gingerclover --pg-superuser-password postgres_pw
+python scripts/import_backup.py backup.zip --db-password gingerclover --pg-superuser-password postgres_pw
 ```
 
 ### Override image or video destination
 
 ```bash
-python import_backup.py backup.zip --images-dir /mnt/data/meteorai/images
-python import_backup.py backup.zip --videos-dir /mnt/data/meteorai/videos
+python scripts/import_backup.py backup.zip --images-dir /mnt/data/meteorai/images
+python scripts/import_backup.py backup.zip --videos-dir /mnt/data/meteorai/videos
 ```
 
 ### Skip videos during import
 
 ```bash
-python import_backup.py backup.zip --skip-videos
+python scripts/import_backup.py backup.zip --skip-videos
 ```
 
 ### All options
@@ -165,7 +165,7 @@ Imports are always safe to run against a database that already has data.
 | Label Studio task | `stored_filename` in task data | Skipped |
 | Label Studio task with no DB record | `stored_filename` not in target DB | Skipped (orphan protection) |
 
-For YouTube-sourced frames, `source_url` is stored as `{youtube_url}#t={timestamp}` — each captured frame has a unique, stable identifier that prevents duplicate inserts across imports.
+For YouTube-sourced frames, `source_url` is stored as `{youtube_url}#t={timestamp}` â€” each captured frame has a unique, stable identifier that prevents duplicate inserts across imports.
 
 `image_id` values in Label Studio task data are automatically remapped to the target database's IDs after the DB merge, so the link between annotations and database records is always consistent.
 
@@ -176,7 +176,7 @@ For YouTube-sourced frames, `source_url` is stored as `{youtube_url}#t={timestam
 ### Back up before a scraping run
 
 ```bash
-python export_backup.py --ls-project-id 1 --ls-username you@email.com --ls-password yourpwd
+python scripts/export_backup.py --ls-project-id 1 --ls-username you@email.com --ls-password yourpwd
 ```
 
 ### Transfer to another machine
@@ -185,7 +185,7 @@ python export_backup.py --ls-project-id 1 --ls-username you@email.com --ls-passw
 2. Install dependencies and start PostgreSQL.
 3. Run the import:
    ```bash
-   python import_backup.py meteorai_backup_20250101_120000.zip \
+   python scripts/import_backup.py meteorai_backup_20250101_120000.zip \
        --ls-username you@email.com --ls-password yourpwd
    ```
 4. Start all services:
@@ -199,8 +199,8 @@ If both machines have scraped different images, export from each and import into
 
 ```bash
 # On machine A: import machine B's data
-python import_backup.py machineB_backup.zip
+python scripts/import_backup.py machineB_backup.zip
 
 # On machine B: import machine A's data
-python import_backup.py machineA_backup.zip
+python scripts/import_backup.py machineA_backup.zip
 ```
