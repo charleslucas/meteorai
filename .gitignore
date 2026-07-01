@@ -4,6 +4,7 @@ __pycache__/
 # Environment
 .env
 db_config.py
+.venv/
 
 # Local data dirs
 images/

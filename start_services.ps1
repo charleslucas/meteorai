@@ -1,9 +1,9 @@
-# MeteorAI Startup Script
+﻿# MeteorAI Startup Script
 # Starts PostgreSQL, Streamlit, Label Studio, and the SAM ML backend
 # Detects if each service is already running and skips it if so.
 # Run from PowerShell: .\start_services.ps1
 
-$PROJECT_DIR = "C:\cygwin64\home\charl\meteorai"
+$PROJECT_DIR = "C:\Users\charl\meteorai"
 
 function Test-Port($port) {
     try {
@@ -57,7 +57,7 @@ if (Test-Port 8501) {
     Write-Host "  Streamlit is already running on port 8501." -ForegroundColor Green
 } else {
     Write-Host "  Starting Streamlit..."
-    Start-Process streamlit -ArgumentList "run", "$PROJECT_DIR\meteorite_scraper\app.py", "--server.port", "8501" -WindowStyle Minimized
+    Start-Process streamlit -ArgumentList "run", "$PROJECT_DIR\meteorite_scraper\app.py", "--server.port", "8501", "--browser.gatherUsageStats", "false" -WindowStyle Minimized
     Write-Host "  Streamlit starting at http://localhost:8501" -ForegroundColor Green
 }
 
