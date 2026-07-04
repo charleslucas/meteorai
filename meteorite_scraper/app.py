@@ -98,6 +98,8 @@ if 'page' not in st.session_state:
     st.session_state.page = 0
 if 'list_confirm_delete' not in st.session_state:
     st.session_state.list_confirm_delete = None
+if 'detail_id_list' not in st.session_state:
+    st.session_state.detail_id_list = []
 
 # YouTube picker state
 for _key in ('yt_url', 'yt_metadata', 'yt_stage', 'yt_video_path',
@@ -590,6 +592,7 @@ def show_browse_view():
                 st.session_state.view = 'detail'
                 st.session_state.confirm_delete = False
                 st.session_state.list_confirm_delete = None
+                st.session_state.detail_id_list = db.get_all_ids(filters if filters else None)
                 st.rerun()
         with col_id:
             st.write(row['image_id'])
@@ -653,11 +656,35 @@ def show_browse_view():
 
 def show_detail_view(image_id):
     """Show detail/edit view for a single meteorite."""
-    if st.button("Back to list"):
-        st.session_state.selected_id = None
-        st.session_state.view = 'browse'
-        st.session_state.confirm_delete = False
-        st.rerun()
+    id_list = st.session_state.get('detail_id_list', [])
+    cur_pos = id_list.index(image_id) if image_id in id_list else -1
+    total = len(id_list)
+
+    nav_back, nav_prev, nav_pos, nav_next = st.columns([1.5, 1, 2, 1])
+    with nav_back:
+        if st.button("← Back to list"):
+            st.session_state.selected_id = None
+            st.session_state.view = 'browse'
+            st.session_state.confirm_delete = False
+            st.rerun()
+    with nav_prev:
+        if cur_pos > 0:
+            if st.button("← Prev"):
+                st.session_state.selected_id = id_list[cur_pos - 1]
+                st.session_state.confirm_delete = False
+                st.rerun()
+    with nav_pos:
+        if cur_pos >= 0 and total > 0:
+            st.markdown(
+                f'<p style="text-align:center;margin-top:0.4rem">{cur_pos + 1} of {total}</p>',
+                unsafe_allow_html=True
+            )
+    with nav_next:
+        if cur_pos >= 0 and cur_pos < total - 1:
+            if st.button("Next →"):
+                st.session_state.selected_id = id_list[cur_pos + 1]
+                st.session_state.confirm_delete = False
+                st.rerun()
 
     try:
         record = db.get_meteorite_by_id(image_id)
@@ -806,13 +833,33 @@ def show_detail_view(image_id):
                 st.session_state.confirm_delete = False
                 st.rerun()
 
-    # Bottom back button
+    # Bottom nav
     st.divider()
-    if st.button("Back to list", key="back_bottom"):
-        st.session_state.selected_id = None
-        st.session_state.view = 'browse'
-        st.session_state.confirm_delete = False
-        st.rerun()
+    bot_back, bot_prev, bot_pos, bot_next = st.columns([1.5, 1, 2, 1])
+    with bot_back:
+        if st.button("← Back to list", key="back_bottom"):
+            st.session_state.selected_id = None
+            st.session_state.view = 'browse'
+            st.session_state.confirm_delete = False
+            st.rerun()
+    with bot_prev:
+        if cur_pos > 0:
+            if st.button("← Prev", key="prev_bottom"):
+                st.session_state.selected_id = id_list[cur_pos - 1]
+                st.session_state.confirm_delete = False
+                st.rerun()
+    with bot_pos:
+        if cur_pos >= 0 and total > 0:
+            st.markdown(
+                f'<p style="text-align:center;margin-top:0.4rem">{cur_pos + 1} of {total}</p>',
+                unsafe_allow_html=True
+            )
+    with bot_next:
+        if cur_pos >= 0 and cur_pos < total - 1:
+            if st.button("Next →", key="next_bottom"):
+                st.session_state.selected_id = id_list[cur_pos + 1]
+                st.session_state.confirm_delete = False
+                st.rerun()
 
 
 def _fetch_and_store_image(url):

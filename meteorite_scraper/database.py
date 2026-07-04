@@ -247,6 +247,38 @@ class DatabaseManager:
             cursor.execute(f"SELECT COUNT(*) FROM meteorites {where_sql}", params)
             return cursor.fetchone()[0]
 
+    def get_all_ids(self, filters=None):
+        """Return all image_ids matching filters, ordered by image_id ASC."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            where_clauses = []
+            params = []
+
+            if filters:
+                if filters.get('meteorite_name'):
+                    where_clauses.append("meteorite_name ILIKE %s")
+                    params.append(f"%{filters['meteorite_name']}%")
+                if filters.get('in_situ'):
+                    where_clauses.append("in_situ = %s")
+                    params.append(True)
+                if filters.get('primary_type'):
+                    where_clauses.append("primary_type = %s")
+                    params.append(filters['primary_type'])
+                if filters.get('image_context'):
+                    where_clauses.append("image_context = %s")
+                    params.append(filters['image_context'])
+                if filters.get('needs_review') is not None:
+                    where_clauses.append("needs_review = %s")
+                    params.append(filters['needs_review'])
+
+            where_sql = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+            cursor.execute(
+                f"SELECT image_id FROM meteorites {where_sql} ORDER BY image_id ASC",
+                params
+            )
+            return [row[0] for row in cursor.fetchall()]
+
     def get_distinct_values(self, column):
         """Get distinct non-null values for a column (for filter dropdowns)"""
         allowed_columns = {'primary_type', 'secondary_type', 'image_context',
