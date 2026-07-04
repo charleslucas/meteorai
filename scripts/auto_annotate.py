@@ -79,6 +79,7 @@ def fetch_tasks(session, project_id):
     """Return all tasks in the project (with annotations and predictions inline)."""
     tasks = []
     page = 1
+    page_size = 100
     base = LABEL_STUDIO_URL.rstrip("/")
     while True:
         r = session.get(
@@ -86,7 +87,7 @@ def fetch_tasks(session, project_id):
             params={
                 "project": project_id,
                 "page": page,
-                "page_size": 100,
+                "page_size": page_size,
                 "fields": "all",          # include annotations + predictions
             },
             timeout=30,
@@ -97,7 +98,10 @@ def fetch_tasks(session, project_id):
         if not batch:
             break
         tasks.extend(batch)
-        if isinstance(data, dict) and not data.get("next"):
+        # Stop when we get a partial page (last page) or no "next" URL
+        if len(batch) < page_size:
+            break
+        if isinstance(data, dict) and data.get("next") is None and "next" in data:
             break
         page += 1
     return tasks
