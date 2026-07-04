@@ -329,7 +329,7 @@ images. Sources:
 
 - **Meteoritical Bulletin** (already scraped) — ~80K entries, most with photos
 - **MineralImage5k** — 19,207 MIT-licensed mineral photos including some meteorites;
-  immediately available, no scraping required
+  immediately available, no scraping required (evaluated - contains no in-situ images)
 - **Meteorite dealers** — Dealers often have large unpublished photo archives and may
   share for research purposes; worth asking directly
 - **Meteorite hunting communities** — r/meteorites, MetSoc forums, Facebook groups

@@ -308,6 +308,7 @@ def _save_yt_frames(captured, metadata):
                     'in_situ':              metadata.get('in_situ', False),
                     'from_drone':           metadata.get('from_drone', False),
                     'sectioned':            metadata.get('sectioned', False),
+                    'mock_meteorite':       metadata.get('mock_meteorite', False),
                     'fusion_crust_present': metadata.get('fusion_crust_present', False),
                     'regmaglypts_present':  metadata.get('regmaglypts_present', False),
                     'visible_metal':        metadata.get('visible_metal', False),
@@ -722,6 +723,7 @@ def show_detail_view(image_id):
             in_situ = st.checkbox("In Situ", value=bool(record.get('in_situ')))
             from_drone = st.checkbox("From Drone", value=bool(record.get('from_drone')))
             sectioned = st.checkbox("Sectioned", value=bool(record.get('sectioned')))
+            mock_meteorite = st.checkbox("Mock meteorite (painted/replica specimen)", value=bool(record.get('mock_meteorite')))
             needs_review = st.checkbox("Needs review", value=bool(record.get('needs_review')))
             parent_url = st.text_input("Parent URL", value=record.get('parent_url', '') or '')
             photo_quality_options = ["", "High", "Medium", "Low"]
@@ -782,6 +784,7 @@ def show_detail_view(image_id):
                     'in_situ': in_situ,
                     'from_drone': from_drone,
                     'sectioned': sectioned,
+                    'mock_meteorite': mock_meteorite,
                     'photo_quality': photo_quality or None,
                     'image_context': image_context or None,
                     'viewing_angle': viewing_angle or None,
@@ -955,6 +958,7 @@ def show_add_view():
         in_situ = st.checkbox("In Situ", key="add_in_situ")
         from_drone = st.checkbox("From Drone", key="add_from_drone")
         sectioned = st.checkbox("Sectioned", key="add_sectioned")
+        mock_meteorite = st.checkbox("Mock meteorite (painted/replica specimen)", key="add_mock_meteorite")
         needs_review = st.checkbox("Needs review", value=False)
         parent_url = st.text_input("Parent URL")
         photo_quality_options = ["", "High", "Medium", "Low"]
@@ -1026,6 +1030,7 @@ def show_add_view():
                         'in_situ':                 in_situ,
                         'from_drone':              from_drone,
                         'sectioned':               sectioned,
+                        'mock_meteorite':          mock_meteorite,
                         'fusion_crust_present':    fusion_crust_present,
                         'regmaglypts_present':     regmaglypts_present,
                         'visible_metal':           visible_metal,
@@ -1125,6 +1130,7 @@ def show_add_view():
                             'in_situ': in_situ,
                             'from_drone': from_drone,
                             'sectioned': sectioned,
+                            'mock_meteorite': mock_meteorite,
                             'fusion_crust_present': fusion_crust_present,
                             'regmaglypts_present': regmaglypts_present,
                             'visible_metal': visible_metal,
@@ -1224,6 +1230,7 @@ def show_add_view():
                             'in_situ': in_situ,
                             'from_drone': from_drone,
                             'sectioned': sectioned,
+                            'mock_meteorite': mock_meteorite,
                             'fusion_crust_present': fusion_crust_present,
                             'regmaglypts_present': regmaglypts_present,
                             'visible_metal': visible_metal,
