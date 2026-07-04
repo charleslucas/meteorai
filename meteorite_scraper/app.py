@@ -560,7 +560,7 @@ def show_browse_view():
     _show_pagination(max_page, "top")
 
     # Column headers
-    col_act, col_id, col_thumb, col_nr, col_name, col_pt, col_pq, col_type, col_class, col_ctx, col_del = st.columns([1, 0.5, 1, 1, 2.5, 1.5, 1.5, 2, 2, 2, 1])
+    col_act, col_id, col_thumb, col_nr, col_name, col_pt, col_mock, col_pq, col_type, col_class, col_ctx, col_del = st.columns([1, 0.5, 1, 1, 2.5, 1.5, 1.5, 1.5, 2, 2, 2, 1])
     with col_act:
         st.markdown("**Action**")
     with col_id:
@@ -573,6 +573,8 @@ def show_browse_view():
         st.markdown("**Name**")
     with col_pt:
         st.markdown('<div style="text-align:center"><strong>In Situ</strong></div>', unsafe_allow_html=True)
+    with col_mock:
+        st.markdown('<div style="text-align:center"><strong>Mock</strong></div>', unsafe_allow_html=True)
     with col_pq:
         st.markdown("**Photo Quality**")
     with col_type:
@@ -586,7 +588,7 @@ def show_browse_view():
 
     # Display table
     for row in rows:
-        col_act, col_id, col_thumb, col_nr, col_name, col_pt, col_pq, col_type, col_class, col_ctx, col_del = st.columns([1, 0.5, 1, 1, 2.5, 1.5, 1.5, 2, 2, 2, 1])
+        col_act, col_id, col_thumb, col_nr, col_name, col_pt, col_mock, col_pq, col_type, col_class, col_ctx, col_del = st.columns([1, 0.5, 1, 1, 2.5, 1.5, 1.5, 1.5, 2, 2, 2, 1])
         with col_act:
             if st.button("View", key=f"view_{row['image_id']}"):
                 st.session_state.selected_id = row['image_id']
@@ -612,6 +614,11 @@ def show_browse_view():
         with col_pt:
             st.markdown(
                 f'<div style="text-align:center">{"&#9745;" if row.get("in_situ") else "&#9744;"}</div>',
+                unsafe_allow_html=True
+            )
+        with col_mock:
+            st.markdown(
+                f'<div style="text-align:center">{"&#9745;" if row.get("mock_meteorite") else "&#9744;"}</div>',
                 unsafe_allow_html=True
             )
         with col_pq:
