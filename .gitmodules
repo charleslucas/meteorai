@@ -1,0 +1,3 @@
+[submodule "meteorite-detector-video"]
+	path = meteorite-detector-video
+	url = https://github.com/charleslucas/meteorite-detector-video.git
