@@ -40,7 +40,7 @@ RUNS_DIR     = PROJECT_DIR / "training" / "runs"
 sys.path.insert(0, str(SCRAPER_DIR))
 from dotenv import load_dotenv
 load_dotenv(SCRAPER_DIR / ".env")
-from config import IMAGES_DIR, LABEL_STUDIO_URL, LABEL_STUDIO_API_KEY, LABEL_STUDIO_PROJECT_ID
+from config import IMAGES_DIR, LABEL_STUDIO_URL, LABEL_STUDIO_API_KEY, LABEL_STUDIO_PROJECT_ID, DB_CONFIG
 
 # ---------------------------------------------------------------------------
 # Classes â€” keep in sync with label_studio/export_annotations.py
@@ -76,10 +76,30 @@ def export_annotations():
 
 
 # ---------------------------------------------------------------------------
+# DB helpers
+# ---------------------------------------------------------------------------
+
+def get_stems_where(condition_sql):
+    """Return a set of stored_filename stems matching a SQL WHERE clause."""
+    try:
+        import psycopg2
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+        cur.execute(f"SELECT stored_filename FROM meteorites WHERE {condition_sql}")
+        stems = {Path(row[0]).stem for row in cur.fetchall()}
+        cur.close()
+        conn.close()
+        return stems
+    except Exception as exc:
+        print(f"  WARNING: DB query failed ({exc}) — filter not applied.")
+        return set()
+
+
+# ---------------------------------------------------------------------------
 # Step 2: Build train/val split
 # ---------------------------------------------------------------------------
 
-def build_dataset(val_split=0.15, seed=42):
+def build_dataset(val_split=0.15, seed=42, exclude_sectioned=False):
     """
     Create training/dataset/ with the following structure:
         dataset/
@@ -96,6 +116,13 @@ def build_dataset(val_split=0.15, seed=42):
     # Collect annotation files that have at least one valid label line
     ann_files = sorted(EXPORTS_DIR.glob("*.txt"))
     ann_files = [f for f in ann_files if f.name != "classes.txt" and f.stat().st_size > 0]
+
+    # Apply DB-driven filters
+    if exclude_sectioned:
+        sectioned = get_stems_where("sectioned = TRUE")
+        before = len(ann_files)
+        ann_files = [f for f in ann_files if f.stem not in sectioned]
+        print(f"  Excluded {before - len(ann_files)} sectioned specimen(s).")
 
     if not ann_files:
         print("ERROR: No annotation files found in", EXPORTS_DIR)
@@ -290,6 +317,8 @@ def main():
                         help="Random seed for train/val split (default: 42).")
     parser.add_argument("--clean", action="store_true",
                         help="Delete existing dataset directory before building.")
+    parser.add_argument("--exclude-sectioned", action="store_true",
+                        help="Exclude images marked as 'sectioned' in the database.")
     args = parser.parse_args()
 
     print("=== MeteorAI Model Training ===")
@@ -301,7 +330,11 @@ def main():
     if not args.skip_export:
         export_annotations()
 
-    yaml_path, active_classes = build_dataset(val_split=args.val_split, seed=args.seed)
+    yaml_path, active_classes = build_dataset(
+        val_split=args.val_split,
+        seed=args.seed,
+        exclude_sectioned=args.exclude_sectioned,
+    )
     train(yaml_path, args.model, args.epochs, args.batch, args.device)
     report(active_classes)
 
