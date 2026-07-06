@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as st_components
 import sys
 import os
 import json
@@ -596,6 +597,7 @@ def show_browse_view():
                 st.session_state.confirm_delete = False
                 st.session_state.list_confirm_delete = None
                 st.session_state.detail_id_list = db.get_all_ids(filters if filters else None)
+                st.session_state.detail_return_page = st.session_state.page
                 st.rerun()
         with col_id:
             st.write(row['image_id'])
@@ -664,6 +666,7 @@ def show_browse_view():
 
 def show_detail_view(image_id):
     """Show detail/edit view for a single meteorite."""
+    st_components.html("<script>window.parent.document.querySelector('section.main').scrollTo(0,0);</script>", height=0)
     id_list = st.session_state.get('detail_id_list', [])
     cur_pos = id_list.index(image_id) if image_id in id_list else -1
     total = len(id_list)
@@ -674,6 +677,7 @@ def show_detail_view(image_id):
             st.session_state.selected_id = None
             st.session_state.view = 'browse'
             st.session_state.confirm_delete = False
+            st.session_state.page = st.session_state.get('detail_return_page', st.session_state.page)
             st.rerun()
     with nav_prev:
         if cur_pos > 0:
@@ -723,46 +727,49 @@ def show_detail_view(image_id):
 
     # Edit form
     with info_col:
-        with st.form("edit_form"):
+        idk = image_id  # short alias for key suffix
+        with st.form(f"edit_form_{idk}"):
             submitted = st.form_submit_button("Save Changes")
 
             st.markdown("#### Image Context")
-            in_situ = st.checkbox("In Situ", value=bool(record.get('in_situ')))
-            from_drone = st.checkbox("From Drone", value=bool(record.get('from_drone')))
-            sectioned = st.checkbox("Sectioned", value=bool(record.get('sectioned')))
-            mock_meteorite = st.checkbox("Mock meteorite (painted/replica specimen)", value=bool(record.get('mock_meteorite')))
-            needs_review = st.checkbox("Needs review", value=bool(record.get('needs_review')))
-            parent_url = st.text_input("Parent URL", value=record.get('parent_url', '') or '')
+            in_situ = st.checkbox("In Situ", value=bool(record.get('in_situ')), key=f"in_situ_{idk}")
+            from_drone = st.checkbox("From Drone", value=bool(record.get('from_drone')), key=f"from_drone_{idk}")
+            sectioned = st.checkbox("Sectioned", value=bool(record.get('sectioned')), key=f"sectioned_{idk}")
+            mock_meteorite = st.checkbox("Mock meteorite (painted/replica specimen)", value=bool(record.get('mock_meteorite')), key=f"mock_meteorite_{idk}")
+            needs_review = st.checkbox("Needs review", value=bool(record.get('needs_review')), key=f"needs_review_{idk}")
+            parent_url = st.text_input("Parent URL", value=record.get('parent_url', '') or '', key=f"parent_url_{idk}")
             photo_quality_options = ["", "High", "Medium", "Low"]
             photo_quality = st.selectbox("Photo quality", photo_quality_options,
-                                         index=photo_quality_options.index(record.get('photo_quality', '') or ''))
-            image_context = st.text_input("Image context", value=record.get('image_context', '') or '')
-            viewing_angle = st.text_input("Viewing angle", value=record.get('viewing_angle', '') or '')
-            background_type = st.text_input("Background type", value=record.get('background_type', '') or '')
-            lighting_type = st.text_input("Lighting type", value=record.get('lighting_type', '') or '')
+                                         index=photo_quality_options.index(record.get('photo_quality', '') or ''),
+                                         key=f"photo_quality_{idk}")
+            image_context = st.text_input("Image context", value=record.get('image_context', '') or '', key=f"image_context_{idk}")
+            viewing_angle = st.text_input("Viewing angle", value=record.get('viewing_angle', '') or '', key=f"viewing_angle_{idk}")
+            background_type = st.text_input("Background type", value=record.get('background_type', '') or '', key=f"background_type_{idk}")
+            lighting_type = st.text_input("Lighting type", value=record.get('lighting_type', '') or '', key=f"lighting_type_{idk}")
 
-            notes = st.text_area("Notes", value=record.get('notes', '') or '')
+            notes = st.text_area("Notes", value=record.get('notes', '') or '', key=f"notes_{idk}")
 
             st.markdown("#### Classification")
-            meteorite_name = st.text_input("Name", value=record.get('meteorite_name', '') or '')
-            primary_type = st.text_input("Primary type", value=record.get('primary_type', '') or '')
-            secondary_type = st.text_input("Secondary type", value=record.get('secondary_type', '') or '')
-            detailed_classification = st.text_input("Detailed classification", value=record.get('detailed_classification', '') or '')
-            weathering_grade = st.text_input("Weathering grade", value=record.get('weathering_grade', '') or '')
+            meteorite_name = st.text_input("Name", value=record.get('meteorite_name', '') or '', key=f"meteorite_name_{idk}")
+            primary_type = st.text_input("Primary type", value=record.get('primary_type', '') or '', key=f"primary_type_{idk}")
+            secondary_type = st.text_input("Secondary type", value=record.get('secondary_type', '') or '', key=f"secondary_type_{idk}")
+            detailed_classification = st.text_input("Detailed classification", value=record.get('detailed_classification', '') or '', key=f"detailed_classification_{idk}")
+            weathering_grade = st.text_input("Weathering grade", value=record.get('weathering_grade', '') or '', key=f"weathering_grade_{idk}")
 
             st.markdown("#### Physical Characteristics")
-            mass_grams = st.text_input("Mass (grams)", value=str(record.get('mass_grams', '') or ''))
-            fusion_crust_present = st.checkbox("Fusion crust present", value=bool(record.get('fusion_crust_present')))
-            regmaglypts_present = st.checkbox("Regmaglypts present", value=bool(record.get('regmaglypts_present')))
-            visible_metal = st.checkbox("Visible metal", value=bool(record.get('visible_metal')))
+            mass_grams = st.text_input("Mass (grams)", value=str(record.get('mass_grams', '') or ''), key=f"mass_grams_{idk}")
+            fusion_crust_present = st.checkbox("Fusion crust present", value=bool(record.get('fusion_crust_present')), key=f"fusion_crust_present_{idk}")
+            regmaglypts_present = st.checkbox("Regmaglypts present", value=bool(record.get('regmaglypts_present')), key=f"regmaglypts_present_{idk}")
+            visible_metal = st.checkbox("Visible metal", value=bool(record.get('visible_metal')), key=f"visible_metal_{idk}")
 
             st.markdown("#### Discovery Info")
             fall_or_find = st.selectbox("Fall or find", ["", "fall", "find"],
-                                        index=["", "fall", "find"].index(record.get('fall_or_find', '') or ''))
-            discovery_location = st.text_input("Discovery location", value=record.get('discovery_location', '') or '')
-            discovery_latitude = st.text_input("Latitude", value=str(record.get('discovery_latitude', '') or ''))
-            discovery_longitude = st.text_input("Longitude", value=str(record.get('discovery_longitude', '') or ''))
-            terrain_type = st.text_input("Terrain type", value=record.get('terrain_type', '') or '')
+                                        index=["", "fall", "find"].index(record.get('fall_or_find', '') or ''),
+                                        key=f"fall_or_find_{idk}")
+            discovery_location = st.text_input("Discovery location", value=record.get('discovery_location', '') or '', key=f"discovery_location_{idk}")
+            discovery_latitude = st.text_input("Latitude", value=str(record.get('discovery_latitude', '') or ''), key=f"discovery_latitude_{idk}")
+            discovery_longitude = st.text_input("Longitude", value=str(record.get('discovery_longitude', '') or ''), key=f"discovery_longitude_{idk}")
+            terrain_type = st.text_input("Terrain type", value=record.get('terrain_type', '') or '', key=f"terrain_type_{idk}")
 
             if submitted:
                 def to_decimal(val):
