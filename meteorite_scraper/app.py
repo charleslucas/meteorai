@@ -561,7 +561,7 @@ def show_browse_view():
     _show_pagination(max_page, "top")
 
     # Column headers
-    col_act, col_id, col_thumb, col_nr, col_name, col_pt, col_mock, col_pq, col_type, col_class, col_ctx, col_del = st.columns([1, 0.5, 1, 1, 2.5, 1.5, 1.5, 1.5, 2, 2, 2, 1])
+    col_act, col_id, col_thumb, col_nr, col_name, col_pt, col_mock, col_neg, col_pq, col_type, col_class, col_ctx, col_del = st.columns([1, 0.5, 1, 1, 2.5, 1, 1, 1, 1.5, 2, 2, 2, 1])
     with col_act:
         st.markdown("**Action**")
     with col_id:
@@ -576,6 +576,8 @@ def show_browse_view():
         st.markdown('<div style="text-align:center"><strong>In Situ</strong></div>', unsafe_allow_html=True)
     with col_mock:
         st.markdown('<div style="text-align:center"><strong>Mock</strong></div>', unsafe_allow_html=True)
+    with col_neg:
+        st.markdown('<div style="text-align:center"><strong>Negative</strong></div>', unsafe_allow_html=True)
     with col_pq:
         st.markdown("**Photo Quality**")
     with col_type:
@@ -589,7 +591,7 @@ def show_browse_view():
 
     # Display table
     for row in rows:
-        col_act, col_id, col_thumb, col_nr, col_name, col_pt, col_mock, col_pq, col_type, col_class, col_ctx, col_del = st.columns([1, 0.5, 1, 1, 2.5, 1.5, 1.5, 1.5, 2, 2, 2, 1])
+        col_act, col_id, col_thumb, col_nr, col_name, col_pt, col_mock, col_neg, col_pq, col_type, col_class, col_ctx, col_del = st.columns([1, 0.5, 1, 1, 2.5, 1, 1, 1, 1.5, 2, 2, 2, 1])
         with col_act:
             if st.button("View", key=f"view_{row['image_id']}"):
                 st.session_state.selected_id = row['image_id']
@@ -621,6 +623,11 @@ def show_browse_view():
         with col_mock:
             st.markdown(
                 f'<div style="text-align:center">{"&#9745;" if row.get("mock_meteorite") else "&#9744;"}</div>',
+                unsafe_allow_html=True
+            )
+        with col_neg:
+            st.markdown(
+                f'<div style="text-align:center">{"&#9745;" if row.get("negative_sample") else "&#9744;"}</div>',
                 unsafe_allow_html=True
             )
         with col_pq:
@@ -736,6 +743,7 @@ def show_detail_view(image_id):
             from_drone = st.checkbox("From Drone", value=bool(record.get('from_drone')), key=f"from_drone_{idk}")
             sectioned = st.checkbox("Sectioned", value=bool(record.get('sectioned')), key=f"sectioned_{idk}")
             mock_meteorite = st.checkbox("Mock meteorite (painted/replica specimen)", value=bool(record.get('mock_meteorite')), key=f"mock_meteorite_{idk}")
+            negative_sample = st.checkbox("Negative sample (no meteorite present)", value=bool(record.get('negative_sample')), key=f"negative_sample_{idk}")
             needs_review = st.checkbox("Needs review", value=bool(record.get('needs_review')), key=f"needs_review_{idk}")
             parent_url = st.text_input("Parent URL", value=record.get('parent_url', '') or '', key=f"parent_url_{idk}")
             photo_quality_options = ["", "High", "Medium", "Low"]
@@ -799,6 +807,7 @@ def show_detail_view(image_id):
                     'from_drone': from_drone,
                     'sectioned': sectioned,
                     'mock_meteorite': mock_meteorite,
+                    'negative_sample': negative_sample,
                     'photo_quality': photo_quality or None,
                     'image_context': image_context or None,
                     'viewing_angle': viewing_angle or None,
@@ -973,6 +982,7 @@ def show_add_view():
         from_drone = st.checkbox("From Drone", key="add_from_drone")
         sectioned = st.checkbox("Sectioned", key="add_sectioned")
         mock_meteorite = st.checkbox("Mock meteorite (painted/replica specimen)", key="add_mock_meteorite")
+        negative_sample = st.checkbox("Negative sample (no meteorite present)", key="add_negative_sample")
         needs_review = st.checkbox("Needs review", value=False)
         parent_url = st.text_input("Parent URL")
         photo_quality_options = ["", "High", "Medium", "Low"]
@@ -1045,6 +1055,7 @@ def show_add_view():
                         'from_drone':              from_drone,
                         'sectioned':               sectioned,
                         'mock_meteorite':          mock_meteorite,
+                        'negative_sample':         negative_sample,
                         'fusion_crust_present':    fusion_crust_present,
                         'regmaglypts_present':     regmaglypts_present,
                         'visible_metal':           visible_metal,
@@ -1145,6 +1156,7 @@ def show_add_view():
                             'from_drone': from_drone,
                             'sectioned': sectioned,
                             'mock_meteorite': mock_meteorite,
+                            'negative_sample': negative_sample,
                             'fusion_crust_present': fusion_crust_present,
                             'regmaglypts_present': regmaglypts_present,
                             'visible_metal': visible_metal,
@@ -1245,6 +1257,7 @@ def show_add_view():
                             'from_drone': from_drone,
                             'sectioned': sectioned,
                             'mock_meteorite': mock_meteorite,
+                            'negative_sample': negative_sample,
                             'fusion_crust_present': fusion_crust_present,
                             'regmaglypts_present': regmaglypts_present,
                             'visible_metal': visible_metal,
