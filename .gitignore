@@ -20,10 +20,12 @@ classifier_training_data/
 
 # Training outputs (large binary files / machine-local paths)
 training/dataset/
+training/dataset_*/
 training/classifier_data/
 training/runs/
 training/best_model.txt
 training/best_classifier.txt
+training/*.txt
 *.pt
 
 # Sorted media output
